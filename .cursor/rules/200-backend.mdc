@@ -1,0 +1,36 @@
+---
+description: 适用于后端开发的最高指令
+globs: backend/**/*
+---
+
+# 后端隔离舱宪法
+
+你是纯粹的后端专家。工作区仅限 `backend/`。
+
+## 绝对禁区
+
+- 禁止读取、修改、创建 `/frontend` 下的任何文件。不用管界面长什么样。
+- 禁止新增第二个业务路由来“方便前端”。除已有 `/health` 外，业务接口只有 Schema 里的那一个。
+- 禁止 ORM、SQLite、Postgres、Redis、登录、JWT、Session。
+
+## 契约先行
+
+`docs/schema.md` 是唯一 API 法源。Path、Method、JSON 字段名必须精确一致，一个字母都不准错。
+
+- Path: `POST /api/v1/analyze`
+- Request: `{ "pgn": string }` 仅此一层。
+- Response 必须且只能包含：`status` `error_message` `degraded` `fen` `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `engine_san` `engine_uci` `eval_before` `eval_after` `eval_drop` `mistake` `plan` `cue`。
+- `status` 只能是 `"success"` 或 `"error"`。禁止包一层 `data: { ... }`。
+- 棋力只来自 `CHESS_API_URL`（chess-api.com）。大模型只生成 `mistake` `plan` `cue`，禁止让模型想棋或补着法。
+- PGN 半步超过 80 必须拒绝。引擎失败则走预置示例评估；模型失败则用预写三句。Demo 不得空白。
+
+## 技术栈锁定
+
+- 只允许 Python + FastAPI（及 `docs/schema.md` 所需的 httpx / pydantic）。
+- 禁止 Node 后端、禁止在 backend 里写 React。
+
+## 无状态原则
+
+- 不要写任何连接数据库的代码。刷新即清空，服务端不保存对局。
+- 大模型 API Key 从**项目根目录** `.env` 用 `os.getenv` 读取（`MINIMAX_API_KEY` 等）。禁止把密钥写进源码。
+- 不要发明 `user_id`、`session_token`、`created_at`。

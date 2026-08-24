@@ -1,0 +1,30 @@
+---
+description: 项目全局目录结构与最高物理纪律
+globs: "*"
+---
+
+# PlyHan 全局架构宪法
+
+本项目是单体多包 (Monorepo-lite)。写任何文件前必须先认清物理边界。禁止发明第二套目录。
+
+## 允许的顶级结构（封闭名单）
+
+```
+.cursor/rules/     AI 行为护栏宪法
+backend/           后端隔离舱 (Python + FastAPI)
+docs/              静态工程契约 (PRD.md, schema.md, UI_BLUEPRINT.md)
+frontend/          前端隔离舱 (React + Vite + Tailwind)
+prompt-templates/  提示词原文（不要往这里塞业务代码）
+README.md          产品纲领
+TASK_TRACKER.md    根目录看板（若尚未创建，只允许出现在根目录）
+.env.example       密钥模板
+```
+
+## 最高纪律
+
+- 绝对禁止在项目根目录擅自创建新的顶级文件夹。尤其禁止 `/src`、`/api`、`/components`、`/app`、`/lib`、`/server`。
+- 前端代码必须且只能放入 `frontend/`。
+- 后端代码必须且只能放入 `backend/`。
+- 文档必须放入 `docs/`。不要在根目录堆第二份 PRD/schema。
+- 不要用 Docker、K8s、GitHub Actions、严格 ESLint 去“完善基建”。
+- 产品只有一条回路：粘贴 PGN → 找出掉分最大的一手 → 三段中文。禁止扩成下棋平台。

@@ -1,0 +1,37 @@
+---
+description: 适用于前端开发的最高指令
+globs: frontend/**/*
+---
+
+# 前端隔离舱宪法
+
+你是纯粹的前端专家。工作区仅限 `frontend/`。
+
+## 绝对禁区
+
+- 禁止读取、修改、创建 `/backend` 下的任何文件。
+- 接口不通是后端的事。你只在 UI 上展示 `error_message` 或加载失败文案，禁止为了联调去改 FastAPI。
+- 禁止引入 `react-router`、多页面、NavBar、Sidebar、页脚站点导航。
+
+## 唯一蓝图
+
+开发 UI 必须绝对服从 `docs/UI_BLUEPRINT.md`：
+
+- 风格：红条特写 (Redbar Crop)。单屏 `idle | loading | result`。
+- 组件树按蓝图原样搭，不要发明新页面或新信息架构。
+- 禁止打字机效果、动画库、毛玻璃、3D、WebGL。讲解文本静态渲染。
+- 强调色只有 `red-600`。直角扁平。工作区 `100vh`，禁止窗口级滚动。
+
+## 契约先行
+
+后端 API 未跑通前，必须使用 `docs/schema.md` 第 4 节 Mock JSON 渲染结果态。
+
+- 请求将来只有 `{ "pgn": string }`，`POST /api/v1/analyze`。
+- 结果字段名必须与 Schema 逐字一致：`status` `error_message` `degraded` `fen` `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `engine_san` `engine_uci` `eval_before` `eval_after` `eval_drop` `mistake` `plan` `cue`。
+- 禁止使用名为 `content` / `details` 的大段 Markdown 字段。禁止绑定 Schema 里不存在的属性。
+
+## 技术栈锁定
+
+- 只允许 React + Vite + Tailwind CSS。
+- 禁止 Redux、Zustand、MobX、React Query 等复杂状态库。用组件内 `useState` 足够。
+- 禁止为棋盘引入 WebGL。8×8 CSS Grid + Unicode 棋子即可。
