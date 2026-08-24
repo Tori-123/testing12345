@@ -32,25 +32,25 @@
 
 只改 `frontend/`。先不要 fetch 后端。把 Schema 第 4 节 Mock JSON 复制为本地常量。禁止 `react-router`、Redux、打字机库。
 
-- [ ] 删除 `App.jsx` 里的 `"Frontend is Ready"`，按蓝图搭 `<SingleScreenWorkspace>`：`h-screen overflow-hidden bg-neutral-950`，无窗口滚动
-- [ ] 实现 `<BrandStrip>`：左 `PlyHan`，右 slogan「对着红条发呆的那五分钟，把棋谱扔进来。」两者均不可点击跳转
-- [ ] 用 `useState` 管理 `view: "idle" | "loading" | "result"` 和 `pgn: string`，无全局 store
-- [ ] 实现 `<PgnTextarea>`：矮、`font-mono`、内部滚动；进入页面自动 `focus`
-- [ ] 实现 `<SampleLink>` 文字链「载入示例」：只把内置示例 PGN 字符串写入 textarea，不发网络请求
-- [ ] 实现 `<SubmitButton>`：文案「复盘这一手」；`pgn` 去空白为空时 `disabled`；主色 `bg-red-600`、直角 `rounded-none`
-- [ ] `idle`：隐藏红条、棋盘、白皮卡；只显示顶栏 + 输入条
-- [ ] 点击提交后 200ms 内切到 `loading`：按钮禁用并改为「正在找败着」；文本框只读
-- [ ] 实现 `<RedBar>`：`h-1 bg-red-600`，仅用 Tailwind `transition-all duration-1000` 从 `w-full` 收到 `w-1/12` 一次；下方固定文案「正在找掉分最大的一手」
-- [ ] 在 `src/` 新建常量文件，原样粘贴 `docs/schema.md` 第 4 节 Mock JSON（`g4` / `+1.6` / `-2.8` / 三句中文）
-- [ ] `loading` 用 `setTimeout` 约 1 秒后切到 `result`，把该 Mock 当作成功响应（此时仍不调用后端）
-- [ ] 实现 `<PlyCaption>`：绑定 Mock 的 `move_number` 与 `side`（`white`→「白」，`black`→「黑」）
-- [ ] 实现 `<EvalRow>`：`eval_before` 删除线 `text-neutral-500`；`eval_after` 为 `text-red-600 font-mono`；`eval_drop` 显示「掉 {n}」
-- [ ] 实现 `<ChessBoard>`：8×8 CSS Grid + Unicode 棋子，渲染 Mock `fen`；`from_square`/`to_square`（`g2`/`g4`）用 `ring-2 ring-red-600`；禁止箭头动画
-- [ ] 实现 `<MovePair>`：`user_san` 为 `text-6xl font-bold`，`title={user_uci}`；`engine_san` 为 `text-xl`，前缀「该走」，`title={engine_uci}`，颜色 `neutral-500`
-- [ ] 实现 `<TalkCard>`：`bg-white text-neutral-900 overflow-y-auto rounded-none`；三节固定标题「错在哪 / 当时该怎样 / 下次先看什么」，正文分别绑 `mistake` `plan` `cue`
-- [ ] `degraded === true` 时在 `<BrandStrip>` 显示「已用示例局面」；Mock 为 `false` 时该标记必须隐藏
-- [ ] 写死一份 `status="error"` 的本地对象，临时触发后只在按钮下显示 `error_message`，棋盘与白皮卡保持隐藏、不弹窗
-- [ ] 目视核对：无 NavBar、无 Sidebar、无第二页、强调色只有红、讲解为静态文本不是打字机
+- [x] 删除 `App.jsx` 里的 `"Frontend is Ready"`，按蓝图搭 `<SingleScreenWorkspace>`：`h-screen overflow-hidden bg-neutral-950`，无窗口滚动
+- [x] 实现 `<BrandStrip>`：左 `PlyHan`，右 slogan「对着红条发呆的那五分钟，把棋谱扔进来。」两者均不可点击跳转
+- [x] 用 `useState` 管理 `view: "idle" | "loading" | "result"` 和 `pgn: string`，无全局 store
+- [x] 实现 `<PgnTextarea>`：矮、`font-mono`、内部滚动；进入页面自动 `focus`
+- [x] 实现 `<SampleLink>` 文字链「载入示例」：只把内置示例 PGN 字符串写入 textarea，不发网络请求
+- [x] 实现 `<SubmitButton>`：文案「复盘这一手」；`pgn` 去空白为空时 `disabled`；主色 `bg-red-600`、直角 `rounded-none`
+- [x] `idle`：隐藏红条、棋盘、白皮卡；只显示顶栏 + 输入条
+- [x] 点击提交后 200ms 内切到 `loading`：按钮禁用并改为「正在找败着」；文本框只读
+- [x] 实现 `<RedBar>`：`h-1 bg-red-600`，仅用 Tailwind `transition-all duration-1000` 从 `w-full` 收到 `w-1/12` 一次；下方固定文案「正在找掉分最大的一手」
+- [x] 在 `src/` 新建常量文件，原样粘贴 `docs/schema.md` 第 4 节 Mock JSON（`g4` / `+1.6` / `-2.8` / 三句中文）
+- [x] `loading` 用 `setTimeout` 约 1 秒后切到 `result`，把该 Mock 当作成功响应（此时仍不调用后端）
+- [x] 实现 `<PlyCaption>`：绑定 Mock 的 `move_number` 与 `side`（`white`→「白」，`black`→「黑」）
+- [x] 实现 `<EvalRow>`：`eval_before` 删除线 `text-neutral-500`；`eval_after` 为 `text-red-600 font-mono`；`eval_drop` 显示「掉 {n}」
+- [x] 实现 `<ChessBoard>`：8×8 CSS Grid + Unicode 棋子，渲染 Mock `fen`；`from_square`/`to_square`（`g2`/`g4`）用 `ring-2 ring-red-600`；禁止箭头动画
+- [x] 实现 `<MovePair>`：`user_san` 为 `text-6xl font-bold`，`title={user_uci}`；`engine_san` 为 `text-xl`，前缀「该走」，`title={engine_uci}`，颜色 `neutral-500`
+- [x] 实现 `<TalkCard>`：`bg-white text-neutral-900 overflow-y-auto rounded-none`；三节固定标题「错在哪 / 当时该怎样 / 下次先看什么」，正文分别绑 `mistake` `plan` `cue`
+- [x] `degraded === true` 时在 `<BrandStrip>` 显示「已用示例局面」；Mock 为 `false` 时该标记必须隐藏
+- [x] 写死一份 `status="error"` 的本地对象，临时触发后只在按钮下显示 `error_message`，棋盘与白皮卡保持隐藏、不弹窗
+- [x] 目视核对：无 NavBar、无 Sidebar、无第二页、强调色只有红、讲解为静态文本不是打字机
 
 ---
 
