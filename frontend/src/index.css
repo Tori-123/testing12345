@@ -8,3 +8,37 @@ body,
   height: 100%;
   overflow: hidden;
 }
+
+.chess-piece-fly {
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
+  transform: scale(1.08);
+}
+
+@keyframes gomoku-ai-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-45%) scale(0.58);
+    filter: drop-shadow(0 14px 8px rgba(0, 0, 0, 0.15));
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(7%) scale(1.08);
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+  }
+}
+
+.gomoku-ai-drop {
+  animation: gomoku-ai-drop 480ms cubic-bezier(0.22, 0.9, 0.32, 1.18) both;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gomoku-ai-drop {
+    animation: none;
+  }
+}
