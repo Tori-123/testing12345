@@ -4,8 +4,11 @@ import ChessBoard, {
   clearSquareFen,
   pieceCodeAt,
 } from "./ChessBoard.jsx";
+import GomokuGame from "./GomokuGame.jsx";
 
-const PLAY_URL = "http://127.0.0.1:8000/api/v1/play";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const PLAY_URL = `${API_BASE_URL}/api/v1/play`;
 const FETCH_TIMEOUT_MS = 30000;
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const USER_SLIDE_MS = 480;
@@ -90,18 +93,27 @@ function GameOverModal({ result, onRestart, onDismiss }) {
   );
 }
 
-function BrandStrip() {
+function BrandStrip({ onBack }) {
   return (
     <header className="flex h-[8%] min-h-[3rem] shrink-0 items-center justify-between px-4">
-      <span className="text-lg font-semibold tracking-tight">PlyHan</span>
-      <p className="max-w-[70%] text-right text-sm text-neutral-500">
+      <div className="flex items-center gap-4">
+        <span className="text-lg font-semibold tracking-tight">PlyHan</span>
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+        >
+          选择棋种
+        </button>
+      </div>
+      <p className="max-w-[60%] text-right text-sm text-neutral-500">
         你执白。走一步，电脑用下棋 API 回一步。
       </p>
     </header>
   );
 }
 
-function PlayWorkspace() {
+function ChessGame({ onBack }) {
   const [fen, setFen] = useState(START_FEN);
   const [legalUci, setLegalUci] = useState([]);
   const [selected, setSelected] = useState("");
@@ -327,7 +339,7 @@ function PlayWorkspace() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100">
-      <BrandStrip />
+      <BrandStrip onBack={onBack} />
       <div className="flex min-h-0 flex-1 gap-4 px-4 pb-4">
         <div className="flex min-h-0 w-[58%] flex-col">
           <ChessBoard
@@ -396,6 +408,62 @@ function PlayWorkspace() {
   );
 }
 
+function ModePicker({ onSelect }) {
+  return (
+    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-6 py-8 font-sans text-neutral-100">
+      <header className="flex items-start justify-between">
+        <div>
+          <p className="text-lg font-semibold tracking-tight">PlyHan</p>
+          <h1 className="mt-10 text-5xl font-bold leading-tight">
+            今天下哪一种？
+          </h1>
+        </div>
+        <p className="max-w-sm text-right text-sm leading-relaxed text-neutral-500">
+          选一个棋盘。你走一步，棋力引擎回一步。
+        </p>
+      </header>
+      <div className="grid min-h-0 flex-1 grid-cols-2 items-center gap-4">
+        <button
+          type="button"
+          onClick={() => onSelect("chess")}
+          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+        >
+          <span className="text-sm text-neutral-500">Chess API</span>
+          <span>
+            <span className="block text-4xl font-bold">国际象棋</span>
+            <span className="mt-3 block text-sm text-neutral-500">
+              你执白，与 Stockfish 对弈
+            </span>
+          </span>
+          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect("gomoku")}
+          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+        >
+          <span className="text-sm text-neutral-500">Rapfi</span>
+          <span>
+            <span className="block text-4xl font-bold">五子棋</span>
+            <span className="mt-3 block text-sm text-neutral-500">
+              你执黑，15×15 自由规则
+            </span>
+          </span>
+          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
+        </button>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
-  return <PlayWorkspace />;
+  const [selectedGame, setSelectedGame] = useState(null);
+
+  if (selectedGame === "chess") {
+    return <ChessGame onBack={() => setSelectedGame(null)} />;
+  }
+  if (selectedGame === "gomoku") {
+    return <GomokuGame onBack={() => setSelectedGame(null)} />;
+  }
+  return <ModePicker onSelect={setSelectedGame} />;
 }

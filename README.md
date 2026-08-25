@@ -1,34 +1,76 @@
 # PlyHan
 
-对着红条发呆的那五分钟，把棋谱扔进来。一盘棋只开一刀。
+单屏双棋种人机对弈：国际象棋使用 chess-api.com，五子棋使用本机或云主机上的 Rapfi。无账号、无数据库、刷新即清空。
 
-## 🎯 核心痛点与问题陈述 (The Problem)
+## 功能
 
-业余棋手不缺引擎。Lichess 和 Chess.com 已经把评估条、准确率、Blunder 标签做成标配。他们卡死在最后一公里：看得出第 26 步是红的，看不懂这步坏在丢掉了哪个具体机会。
+- 首屏选择“国际象棋”或“五子棋”。
+- 国际象棋：用户执白，后端校验棋规并请求 chess-api.com 返回电脑着法。
+- 五子棋：15×15 自由规则，用户执黑，后端校验落子并通过 Rapfi 返回电脑着法；可选入门、简单、普通、困难四档。入门档大部分时间采用 Rapfi 简单着法，约 20% 的局面稳定选择一次较弱但合法的落子；其他档使用 Rapfi 原生棋力控制，界面统一补足思考时间。
+- 两种模式均支持落子历史、重新开局、引擎失败重试和胜负提示。
 
-引擎吐出 `+1.42` 和 `Nxe5 Bxe5...`。棋手能看懂「该走马」，看不懂「当时为什么必须先看这匹马」。全盘 40 步分析是过载，班级群里能讲棋的人已经睡了。单独问通用大模型又会发明非法着。
+## 环境安装
 
-竞品要么给完整战报（太臃肿），要么给人话但不可得（太慢），要么脱离棋力胡讲（教错）。PlyHan 只做一件事：**定位掉分最大的那一手，把因果说成中文。**
+```bash
+cp .env.example .env
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+npm --prefix frontend install
+```
 
-## 👥 目标用户画像 (Target Audience)
+安装 Rapfi 官方引擎。脚本支持 macOS Apple Silicon 与 Linux x86_64，并校验官方发布包：
 
-晚上 11:24。省重点高二，Lichess Rapid 1420，刚在 3+2 连输。最后一盘走意大利，自己觉得马踩 f5 很帅，第 26 步推 g 兵赶马，被吃掉无根的 e 兵后遭将杀。评估图从 +1.6 掉到 -2.8。他把截图发到班级摸鱼群问「这步是不是该吃？」——1700 那位已经关灯。
+```bash
+backend/.venv/bin/python backend/setup_rapfi.py
+```
 
-他不要再开一盘，不要准确率百分比。他要有人指着 g4 说：赶马前先看 e3 的兵还有没有保护。看完这句话他就睡。
+如果服务器已经安装 Rapfi，可在根目录 `.env` 直接指定：
 
-## ✨ 核心解决方案 (The Solution)
+```dotenv
+RAPFI_BINARY=/absolute/path/to/pbrain-rapfi
+RAPFI_BOARD_SIZE=15
+RAPFI_TIMEOUT_TURN=1500
+```
 
-1. **棋力交给国际象棋 API，不交给大模型。** 粘贴一盘 PGN（或点「载入示例」），拆成逐步 FEN，对每步 `POST https://chess-api.com/v1` 取 `eval`。用分数差选出掉分最大的 1 手。大模型禁止自行想棋。
-2. **大模型只做一件事：把那一个局面翻译成固定三段中文。** 输入是该手的 FEN、用户着法、引擎最佳着、分数差。输出锁死为：错在哪 / 当时该执行什么计划 / 下次同类形状先看哪条线索。
-3. **单屏、单向、无账号。** 同一屏渲染高亮棋盘 + 三句话。引擎 429 或断网时，走预置的示例评估 JSON，保证 Demo 仍能演示讲解。
+Linux 云主机执行相同的 Python 安装命令和 `setup_rapfi.py` 即可，不需要 Docker。运行账户必须有执行 Rapfi 二进制的权限。
 
-不做：人机对弈、登录拉棋谱、用户系统、全盘逐步讲解、开局 RAG、MCP、实时外挂、谜题课、多页面。
+前后端部署在不同域名或端口时，设置：
 
-## 📚 资源与参考 (Resources & References)
+```dotenv
+# 根目录 .env
+CORS_ORIGINS=https://your-frontend.example
 
-- 接口调研：[docs/人机对练下棋AI接口调研.md](docs/人机对练下棋AI接口调研.md)
-- 场景发散：[docs/1-1_微观痛点场景.md](docs/1-1_微观痛点场景.md)
-- 可行性：[docs/1-2_可行性分析.md](docs/1-2_可行性分析.md)
-- chess-api.com（Stockfish 18）：https://chess-api.com/ — `POST /v1`，已实测开局返回 `d2d4`
-- Lichess 分析体验（竞品，非本 Demo 依赖）：https://lichess.org/analysis
-- 棋规拆谱：chess.js（只做合法着与 FEN，不算棋力）
+# frontend/.env
+VITE_API_BASE_URL=https://your-backend.example
+```
+
+## 启动
+
+后端：
+
+```bash
+backend/.venv/bin/uvicorn main:app \
+  --app-dir backend \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+前端：
+
+```bash
+npm --prefix frontend run dev -- --host 0.0.0.0
+```
+
+打开 `http://127.0.0.1:5173`。
+
+## 检查
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+若五子棋提示引擎不可用：
+
+1. 运行 `backend/.venv/bin/python backend/setup_rapfi.py`。
+2. 检查 `.env` 中 `RAPFI_BINARY` 是否为绝对路径。
+3. 确认可执行文件有执行权限，并重启后端。
