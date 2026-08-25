@@ -43,14 +43,14 @@ function pairMoves(sans) {
   return rows;
 }
 
-async function postPlay(fen, uci = "") {
+async function postPlay(fen, uci = "", difficulty = "normal") {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(PLAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fen, uci }),
+      body: JSON.stringify({ fen, uci, difficulty }),
       signal: controller.signal,
     });
     return await response.json();
@@ -128,6 +128,7 @@ function ChessGame({ onBack }) {
   const [turn, setTurn] = useState("white");
   const [flight, setFlight] = useState(null);
   const [overOpen, setOverOpen] = useState(false);
+  const [difficulty, setDifficulty] = useState("normal");
   const requestGen = useRef(0);
 
   const busy = phase !== "idle" || gameOver;
@@ -180,7 +181,7 @@ function ChessGame({ onBack }) {
     setPhase("thinking");
     setErrorMessage("");
     try {
-      const data = await postPlay(fromFen, "");
+      const data = await postPlay(fromFen, "", difficulty);
       if (gen !== requestGen.current) return;
       if (data?.engine_san && data.from_square && data.to_square) {
         setPhase("engine-move");
@@ -220,7 +221,7 @@ function ChessGame({ onBack }) {
 
     setPhase("thinking");
     try {
-      const data = await postPlay(originFen, uci);
+      const data = await postPlay(originFen, uci, difficulty);
       if (gen !== requestGen.current) return;
       applyMeta(data, { appendSans: true });
       if (data?.engine_san && data.from_square && data.to_square) {
@@ -272,7 +273,7 @@ function ChessGame({ onBack }) {
     setFlight(null);
     setPhase("thinking");
     try {
-      const data = await postPlay(START_FEN, "");
+      const data = await postPlay(START_FEN, "", difficulty);
       if (gen !== requestGen.current) return;
       if (data?.fen) setFen(data.fen);
       applyMeta(data);
@@ -289,7 +290,7 @@ function ChessGame({ onBack }) {
     const gen = ++requestGen.current;
     (async () => {
       try {
-        const data = await postPlay(START_FEN, "");
+        const data = await postPlay(START_FEN, "", difficulty);
         if (cancelled || gen !== requestGen.current) return;
         if (data?.fen) setFen(data.fen);
         applyMeta(data);
@@ -358,6 +359,20 @@ function ChessGame({ onBack }) {
           <div className="mt-3 font-mono text-sm text-neutral-500">
             评估 {formatEval(evalScore)}
           </div>
+          <label className="mt-4 flex items-center justify-between gap-3 text-sm text-neutral-700">
+            <span>电脑难度</span>
+            <select
+              value={difficulty}
+              disabled={phase !== "idle"}
+              onChange={(event) => setDifficulty(event.target.value)}
+              className="rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
+            >
+              <option value="beginner">入门</option>
+              <option value="easy">简单</option>
+              <option value="normal">普通</option>
+              <option value="hard">困难</option>
+            </select>
+          </label>
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
           ) : null}

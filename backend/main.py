@@ -44,6 +44,12 @@ CHESS_TIMEOUT = 5.0
 LLM_TIMEOUT = 20.0
 CHESS_WORKERS = 4
 PLAY_DEPTH = 6
+CHESS_DIFFICULTY = {
+    "beginner": (1, 10),
+    "easy": (3, 25),
+    "normal": (6, 50),
+    "hard": (10, 100),
+}
 GOMOKU_BOARD_SIZE = 15
 GOMOKU_SEARCH_MS = 800
 BEGINNER_MISTAKE_PERCENT = 20
@@ -191,13 +197,17 @@ def parse_eval(value) -> float | None:
         return None
 
 
-def call_chess_api(fen: str, depth: int | None = None) -> dict:
+def call_chess_api(
+    fen: str,
+    depth: int | None = None,
+    max_thinking_time: int = 50,
+) -> dict:
     response = httpx.post(
         CHESS_API_URL,
         json={
             "fen": fen,
             "depth": PLAY_DEPTH if depth is None else depth,
-            "maxThinkingTime": 50,
+            "maxThinkingTime": max_thinking_time,
             "variants": 1,
         },
         timeout=CHESS_TIMEOUT,
@@ -430,6 +440,7 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 class PlayRequest(BaseModel):
     fen: str = ""
     uci: str = ""
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "normal"
 
 
 class PlayResponse(BaseModel):
@@ -519,8 +530,16 @@ def play_state(
     )
 
 
-def apply_engine_move(board: chess.Board) -> tuple[str, str, str, str, float]:
-    payload = call_chess_api(board.fen())
+def apply_engine_move(
+    board: chess.Board,
+    difficulty: str,
+) -> tuple[str, str, str, str, float]:
+    depth, max_thinking_time = CHESS_DIFFICULTY[difficulty]
+    payload = call_chess_api(
+        board.fen(),
+        depth=depth,
+        max_thinking_time=max_thinking_time,
+    )
     score = parse_eval(payload.get("eval")) or 0.0
     move = parse_engine_move(board, payload)
     if move is None:
@@ -575,7 +594,10 @@ def play(payload: PlayRequest) -> PlayResponse:
 
     if board.turn == chess.BLACK and not board.is_game_over(claim_draw=True):
         try:
-            engine_san, engine_uci, from_square, to_square, eval_score = apply_engine_move(board)
+            engine_san, engine_uci, from_square, to_square, eval_score = apply_engine_move(
+                board,
+                payload.difficulty,
+            )
         except (httpx.HTTPError, httpx.RequestError, RuntimeError, KeyError, TypeError, ValueError):
             return play_state(
                 board,
