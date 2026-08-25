@@ -13,7 +13,6 @@ body,
   filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
   transform: scale(1.08);
 }
-<<<<<<< Updated upstream
 
 @keyframes gomoku-ai-drop {
   0% {
@@ -43,5 +42,3 @@ body,
     animation: none;
   }
 }
-=======
->>>>>>> Stashed changes

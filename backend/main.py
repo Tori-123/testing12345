@@ -2,10 +2,7 @@ import io
 import json
 import os
 import re
-<<<<<<< Updated upstream
 import subprocess
-=======
->>>>>>> Stashed changes
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Literal
@@ -16,16 +13,12 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-<<<<<<< Updated upstream
 from pydantic import BaseModel, Field
 
 try:
     from .rapfi import get_rapfi_engine
 except ImportError:
     from rapfi import get_rapfi_engine
-=======
-from pydantic import BaseModel
->>>>>>> Stashed changes
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
@@ -51,7 +44,6 @@ CHESS_TIMEOUT = 5.0
 LLM_TIMEOUT = 20.0
 CHESS_WORKERS = 4
 PLAY_DEPTH = 6
-<<<<<<< Updated upstream
 GOMOKU_BOARD_SIZE = 15
 GOMOKU_SEARCH_MS = 800
 BEGINNER_MISTAKE_PERCENT = 20
@@ -61,20 +53,11 @@ GOMOKU_DIFFICULTY_STRENGTH = {
     "normal": 60,
     "hard": 100,
 }
-=======
->>>>>>> Stashed changes
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-<<<<<<< Updated upstream
     allow_origins=CORS_ORIGINS,
-=======
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
->>>>>>> Stashed changes
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -611,7 +594,6 @@ def play(payload: PlayRequest) -> PlayResponse:
         to_square=to_square,
         eval_score=eval_score,
     )
-<<<<<<< Updated upstream
 
 
 class GomokuMove(BaseModel):
@@ -819,5 +801,3 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
         user_move=user_move,
         engine_move=engine_move,
     )
-=======
->>>>>>> Stashed changes
