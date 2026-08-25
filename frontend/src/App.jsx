@@ -4,11 +4,16 @@ import ChessBoard, {
   clearSquareFen,
   pieceCodeAt,
 } from "./ChessBoard.jsx";
+<<<<<<< Updated upstream
 import GomokuGame from "./GomokuGame.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const PLAY_URL = `${API_BASE_URL}/api/v1/play`;
+=======
+
+const PLAY_URL = "http://127.0.0.1:8000/api/v1/play";
+>>>>>>> Stashed changes
 const FETCH_TIMEOUT_MS = 30000;
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const USER_SLIDE_MS = 480;
@@ -93,6 +98,7 @@ function GameOverModal({ result, onRestart, onDismiss }) {
   );
 }
 
+<<<<<<< Updated upstream
 function BrandStrip({ onBack }) {
   return (
     <header className="flex h-[8%] min-h-[3rem] shrink-0 items-center justify-between px-4">
@@ -107,13 +113,24 @@ function BrandStrip({ onBack }) {
         </button>
       </div>
       <p className="max-w-[60%] text-right text-sm text-neutral-500">
+=======
+function BrandStrip() {
+  return (
+    <header className="flex h-[8%] min-h-[3rem] shrink-0 items-center justify-between px-4">
+      <span className="text-lg font-semibold tracking-tight">PlyHan</span>
+      <p className="max-w-[70%] text-right text-sm text-neutral-500">
+>>>>>>> Stashed changes
         你执白。走一步，电脑用下棋 API 回一步。
       </p>
     </header>
   );
 }
 
+<<<<<<< Updated upstream
 function ChessGame({ onBack }) {
+=======
+function PlayWorkspace() {
+>>>>>>> Stashed changes
   const [fen, setFen] = useState(START_FEN);
   const [legalUci, setLegalUci] = useState([]);
   const [selected, setSelected] = useState("");
@@ -339,7 +356,11 @@ function ChessGame({ onBack }) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100">
+<<<<<<< Updated upstream
       <BrandStrip onBack={onBack} />
+=======
+      <BrandStrip />
+>>>>>>> Stashed changes
       <div className="flex min-h-0 flex-1 gap-4 px-4 pb-4">
         <div className="flex min-h-0 w-[58%] flex-col">
           <ChessBoard
@@ -457,6 +478,7 @@ function ModePicker({ onSelect }) {
 }
 
 export default function App() {
+<<<<<<< Updated upstream
   const [selectedGame, setSelectedGame] = useState(null);
 
   if (selectedGame === "chess") {
@@ -466,4 +488,7 @@ export default function App() {
     return <GomokuGame onBack={() => setSelectedGame(null)} />;
   }
   return <ModePicker onSelect={setSelectedGame} />;
+=======
+  return <PlayWorkspace />;
+>>>>>>> Stashed changes
 }
