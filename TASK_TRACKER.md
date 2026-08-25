@@ -9,22 +9,22 @@
 
 只改 `backend/`。禁止数据库。禁止碰 `frontend/`。
 
-- [ ] 在 `backend/main.py` 用 `python-dotenv` 从**项目根目录** `.env` 读取 `MINIMAX_API_KEY`、`MINIMAX_API_BASE`、`CHESS_API_URL`（`os.getenv`，密钥禁止写进源码）
-- [ ] 在 `backend/requirements.txt` 增加拆谱所需的 `python-chess`（仅棋规，不算棋力）
-- [ ] 在 `backend/` 新增 `sample_game.json`：写入与 `docs/schema.md` 第 4 节 Mock 同结构的预置成功响应（含 `fen`、`g4`、`mistake`/`plan`/`cue`）
-- [ ] 在 `backend/main.py` 定义 Pydantic 模型 `AnalyzeRequest`，仅一个必填字段 `pgn: str`
-- [ ] 在 `backend/main.py` 定义 Pydantic 模型 `AnalyzeResponse`，字段名与 Schema **逐字一致**：`status` `error_message` `degraded` `fen` `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `engine_san` `engine_uci` `eval_before` `eval_after` `eval_drop` `mistake` `plan` `cue`
-- [ ] 在 `backend/main.py` 创建 `POST /api/v1/analyze`（路径必须是 `/api/v1/analyze`，不是 `/api/analyze`）
-- [ ] 空 `pgn` 或纯空白：返回 `status="error"`，`error_message` 为一句中文，其余棋盘字段按 Schema 置空/零
-- [ ] 用 `python-chess` 解析 PGN；非法谱：不调引擎、不调大模型，直接 `status="error"`，文案说明 PGN 非法
-- [ ] 半步（ply）超过 80：拒绝，`error_message` 为「先截到败着附近再贴」
-- [ ] 对每步局面调用 `POST {CHESS_API_URL}`，请求体含 `fen`，只读取返回的 `eval` 与 `move`/`san`
-- [ ] 用相邻 `eval` 差选出对走棋方掉分最大的 **1** 手，填入 `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `eval_before` `eval_after` `eval_drop`
-- [ ] 将该手的 FEN、用户着法、引擎着法、分数差发给 MiniMax；要求模型只返回 JSON 三字段 `mistake` `plan` `cue`；禁止用模型生成着法或评估
-- [ ] 模型缺字段/非 JSON：视为失败，改用 `sample_game.json` 里预写的三句，不得把模型原文塞进单一 `content`
-- [ ] chess-api.com 超时、429、非 JSON：设 `degraded=true`，改用 `sample_game.json` 的局面数据，仍尝试调大模型讲解该示例局面
-- [ ] 用 `curl` 或 FastAPI TestClient POST 一段短合法 PGN，确认响应 JSON 键集合与 Schema 完全一致
-- [ ] 确认 `/health` 仍返回 `{"status": "Backend is Ready"}`，且没有第二个业务路由
+- [x] 在 `backend/main.py` 用 `python-dotenv` 从**项目根目录** `.env` 读取 `MINIMAX_API_KEY`、`MINIMAX_API_BASE`、`CHESS_API_URL`（`os.getenv`，密钥禁止写进源码）
+- [x] 在 `backend/requirements.txt` 增加拆谱所需的 `python-chess`（仅棋规，不算棋力）
+- [x] 在 `backend/` 新增 `sample_game.json`：写入与 `docs/schema.md` 第 4 节 Mock 同结构的预置成功响应（含 `fen`、`g4`、`mistake`/`plan`/`cue`）
+- [x] 在 `backend/main.py` 定义 Pydantic 模型 `AnalyzeRequest`，仅一个必填字段 `pgn: str`
+- [x] 在 `backend/main.py` 定义 Pydantic 模型 `AnalyzeResponse`，字段名与 Schema **逐字一致**：`status` `error_message` `degraded` `fen` `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `engine_san` `engine_uci` `eval_before` `eval_after` `eval_drop` `mistake` `plan` `cue`
+- [x] 在 `backend/main.py` 创建 `POST /api/v1/analyze`（路径必须是 `/api/v1/analyze`，不是 `/api/analyze`）
+- [x] 空 `pgn` 或纯空白：返回 `status="error"`，`error_message` 为一句中文，其余棋盘字段按 Schema 置空/零
+- [x] 用 `python-chess` 解析 PGN；非法谱：不调引擎、不调大模型，直接 `status="error"`，文案说明 PGN 非法
+- [x] 半步（ply）超过 80：拒绝，`error_message` 为「先截到败着附近再贴」
+- [x] 对每步局面调用 `POST {CHESS_API_URL}`，请求体含 `fen`，只读取返回的 `eval` 与 `move`/`san`
+- [x] 用相邻 `eval` 差选出对走棋方掉分最大的 **1** 手，填入 `move_number` `side` `user_san` `user_uci` `from_square` `to_square` `eval_before` `eval_after` `eval_drop`
+- [x] 将该手的 FEN、用户着法、引擎着法、分数差发给 MiniMax；要求模型只返回 JSON 三字段 `mistake` `plan` `cue`；禁止用模型生成着法或评估
+- [x] 模型缺字段/非 JSON：视为失败，改用 `sample_game.json` 里预写的三句，不得把模型原文塞进单一 `content`
+- [x] chess-api.com 超时、429、非 JSON：设 `degraded=true`，改用 `sample_game.json` 的局面数据，仍尝试调大模型讲解该示例局面
+- [x] 用 `curl` 或 FastAPI TestClient POST 一段短合法 PGN，确认响应 JSON 键集合与 Schema 完全一致
+- [x] 确认 `/health` 仍返回 `{"status": "Backend is Ready"}`，且没有第二个业务路由
 
 ---
 
@@ -58,14 +58,14 @@
 
 前后端联调。前端去掉「用 timeout 喂 Mock」作为主路径。
 
-- [ ] 在 `backend/main.py` 为 FastAPI 加上 CORSMiddleware，允许 `http://localhost:5173` 与 `http://127.0.0.1:5173`
-- [ ] 前端提交改为一次 `fetch("http://127.0.0.1:8000/api/v1/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pgn }) })`，禁止 WebSocket / SSE
-- [ ] 点击提交立即 `view="loading"`，等完整 JSON 返回后再切 `result` 或显示错误
-- [ ] `status === "success"`：用响应字段替换原先 Mock 绑定（字段名不得改写）
-- [ ] `status === "error"`：`view` 回到可编辑输入，渲染 `error_message`，隐藏棋盘与白皮卡
-- [ ] 浏览器实际粘贴一段 **短于 80 半步** 的合法 PGN，确认能出棋盘高亮和三句中文
-- [ ] 点「载入示例」再提交，确认走的是 textarea 里的 PGN，而不是前端私自换路由
-- [ ] 确认响应里没有 `data` 包裹层，前端只读第一层字段
+- [x] 在 `backend/main.py` 为 FastAPI 加上 CORSMiddleware，允许 `http://localhost:5173` 与 `http://127.0.0.1:5173`
+- [x] 前端提交改为一次 `fetch("http://127.0.0.1:8000/api/v1/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pgn }) })`，禁止 WebSocket / SSE
+- [x] 点击提交立即 `view="loading"`，等完整 JSON 返回后再切 `result` 或显示错误
+- [x] `status === "success"`：用响应字段替换原先 Mock 绑定（字段名不得改写）
+- [x] `status === "error"`：`view` 回到可编辑输入，渲染 `error_message`，隐藏棋盘与白皮卡
+- [x] 浏览器实际粘贴一段 **短于 80 半步** 的合法 PGN，确认能出棋盘高亮和三句中文
+- [x] 点「载入示例」再提交，确认走的是 textarea 里的 PGN，而不是前端私自换路由
+- [x] 确认响应里没有 `data` 包裹层，前端只读第一层字段
 
 ---
 
@@ -73,13 +73,13 @@
 
 对照 PRD 验收底线，保证路演不翻车。
 
-- [ ] 前端在 `fetch` 外包 30 秒 `AbortController` 超时：超时显示一句中文失败，禁止无限转圈
-- [ ] 后端或网络失败时：前端改用本地 Mock JSON 渲染结果，并把 `degraded` 视为 true，显示「已用示例局面」（演示兜底；不要 Service Worker）
-- [ ] 无网评委路径：不启动后端，只点「载入示例」+ 提交，仍能靠前端兜底看到 `g4` 棋盘和三句话
-- [ ] 过长 PGN（>80 半步）走一遍，确认出现「先截到败着附近再贴」，不把页面卡死
-- [ ] 非法 PGN 走一遍，确认只有 `error_message`、没有空白死屏
-- [ ] `degraded=true` 的后端响应走一遍，角落印章可见且三句话仍在
-- [ ] 刷新页面后输入和结果全部消失（无 localStorage、无账号）
-- [ ] 路演清单：先开后端 `uvicorn`，再开前端 `npm run dev`；备用：只开前端走 Mock 兜底
+- [x] 前端在 `fetch` 外包 30 秒 `AbortController` 超时：超时显示一句中文失败，禁止无限转圈
+- [x] 后端或网络失败时：前端改用本地 Mock JSON 渲染结果，并把 `degraded` 视为 true，显示「已用示例局面」（演示兜底；不要 Service Worker）
+- [x] 无网评委路径：不启动后端，只点「载入示例」+ 提交，仍能靠前端兜底看到 `g4` 棋盘和三句话
+- [x] 过长 PGN（>80 半步）走一遍，确认出现「先截到败着附近再贴」，不把页面卡死
+- [x] 非法 PGN 走一遍，确认只有 `error_message`、没有空白死屏
+- [x] `degraded=true` 的后端响应走一遍，角落印章可见且三句话仍在
+- [x] 刷新页面后输入和结果全部消失（无 localStorage、无账号）
+- [x] 路演清单：先开后端 `uvicorn`，再开前端 `npm run dev`；备用：只开前端走 Mock 兜底
 
 > 任何卡顿报错超过 1 小时的 `[ ]` 任务，Tech Lead 必须果断将其无情划掉或降级，确保核心回路不受阻碍。

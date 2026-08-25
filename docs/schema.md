@@ -26,7 +26,7 @@
 
 ```json
 {
-  "pgn": "[Event \"Casual\"]\n[White \"1420rapid\"]\n[Black \"Online\"]\n[Result \"0-1\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. c3 d6 6. O-O O-O 7. Nbd2 a6 8. Bb3 Ba7 9. h3 h6 10. Re1 Be6 11. Bc2 Re8 12. Nf1 d5 13. exd5 Bxd5 14. Ng3 Qd7 15. Be3 Bxe3 16. Rxe3 Rad8 17. Qe2 Qc8 18. Rd1 Rd7 19. Nf5 Ne7 20. Nxe7+ Rxe7 21. Nxe5 Rde7 22. d4 c5 23. Qd3 cxd4 24. cxd4 Bb8 25. Qb3 Qxh3 26. g4 Qxe3+ 27. Kh1 Qh3+ 0-1"
+  "pgn": "[Event \"Casual\"]\n[White \"1420rapid\"]\n[Black \"Online\"]\n[Result \"0-1\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. c3 d6 6. O-O O-O 7. Nbd2 a6 8. Bb3 Ba7 9. h3 h6 10. Re1 Be6 11. Bc2 Re8 12. Nf1 d5 13. exd5 Bxd5 14. Ng3 Qd7 15. Be3 Bxe3 16. Rxe3 Rad8 17. Qe2 Qc8 18. Rd1 Rd7 19. Nf5 Ne7 20. Nxe7+ Rdxe7 21. Nxe5 Qxh3 22. g4 Qxe3+ 0-1"
 }
 ```
 

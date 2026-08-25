@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import chess
@@ -9,6 +10,7 @@ import chess.pgn
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -23,10 +25,22 @@ with SAMPLE_PATH.open(encoding="utf-8") as sample_file:
     SAMPLE_GAME = json.load(sample_file)
 
 MAX_PLIES = 80
-CHESS_TIMEOUT = 10.0
+CHESS_TIMEOUT = 5.0
 LLM_TIMEOUT = 20.0
+CHESS_WORKERS = 4
+PLAY_DEPTH = 6
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AnalyzeRequest(BaseModel):
@@ -156,10 +170,15 @@ def parse_eval(value) -> float | None:
         return None
 
 
-def call_chess_api(fen: str) -> dict:
+def call_chess_api(fen: str, depth: int | None = None) -> dict:
     response = httpx.post(
         CHESS_API_URL,
-        json={"fen": fen, "depth": 8, "maxThinkingTime": 50, "variants": 1},
+        json={
+            "fen": fen,
+            "depth": PLAY_DEPTH if depth is None else depth,
+            "maxThinkingTime": 50,
+            "variants": 1,
+        },
         timeout=CHESS_TIMEOUT,
         headers={"Content-Type": "application/json"},
     )
@@ -191,15 +210,24 @@ def analyze_plies(plies: list[PlyRecord]) -> dict:
             if fen not in unique_fens:
                 unique_fens.append(fen)
 
-    for fen in unique_fens:
-        payload = call_chess_api(fen)
+    def fetch_one(fen: str) -> tuple[str, float, str, str]:
+        payload = call_chess_api(fen, depth=8)
         score = parse_eval(payload.get("eval"))
         if score is None:
             raise RuntimeError("chess api missing eval")
-        evals[fen] = score
         move_uci = str(payload.get("move") or payload.get("lan") or "")
         move_san = str(payload.get("san") or "")
-        engine_by_fen[fen] = (move_san, move_uci)
+        return fen, score, move_san, move_uci
+
+    pool = ThreadPoolExecutor(max_workers=CHESS_WORKERS)
+    futures = [pool.submit(fetch_one, fen) for fen in unique_fens]
+    try:
+        for fut in as_completed(futures):
+            fen, score, move_san, move_uci = fut.result()
+            evals[fen] = score
+            engine_by_fen[fen] = (move_san, move_uci)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
     worst: dict | None = None
     worst_drop = float("-inf")
@@ -376,3 +404,172 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
         degraded = True
 
     return with_coaching(board, degraded=degraded)
+
+
+class PlayRequest(BaseModel):
+    fen: str = ""
+    uci: str = ""
+
+
+class PlayResponse(BaseModel):
+    status: str
+    error_message: str
+    fen: str
+    turn: str
+    legal_uci: list[str]
+    user_san: str
+    user_uci: str
+    engine_san: str
+    engine_uci: str
+    from_square: str
+    to_square: str
+    eval: float
+    game_over: bool
+    result: str
+
+
+def legal_uci_list(board: chess.Board) -> list[str]:
+    return [move.uci() for move in board.legal_moves]
+
+
+def parse_user_uci(board: chess.Board, uci: str) -> chess.Move | None:
+    raw = uci.strip().lower()
+    candidates = [raw]
+    if len(raw) == 4:
+        candidates.append(raw + "q")
+    for candidate in candidates:
+        try:
+            move = chess.Move.from_uci(candidate)
+        except ValueError:
+            continue
+        if move in board.legal_moves:
+            return move
+    return None
+
+
+def parse_engine_move(board: chess.Board, payload: dict) -> chess.Move | None:
+    uci = str(payload.get("move") or payload.get("lan") or "").strip()
+    if uci:
+        try:
+            move = chess.Move.from_uci(uci)
+            if move in board.legal_moves:
+                return move
+        except ValueError:
+            pass
+    san = payload.get("san")
+    if san:
+        try:
+            move = board.parse_san(str(san))
+            if move in board.legal_moves:
+                return move
+        except ValueError:
+            pass
+    return None
+
+
+def play_state(
+    board: chess.Board,
+    *,
+    error: str = "",
+    user_san: str = "",
+    user_uci: str = "",
+    engine_san: str = "",
+    engine_uci: str = "",
+    from_square: str = "",
+    to_square: str = "",
+    eval_score: float = 0,
+) -> PlayResponse:
+    game_over = board.is_game_over(claim_draw=True)
+    return PlayResponse(
+        status="error" if error else "success",
+        error_message=error,
+        fen=board.fen(),
+        turn="white" if board.turn == chess.WHITE else "black",
+        legal_uci=legal_uci_list(board),
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
+        eval=float(eval_score),
+        game_over=game_over,
+        result=board.result(claim_draw=True) if game_over else "",
+    )
+
+
+def apply_engine_move(board: chess.Board) -> tuple[str, str, str, str, float]:
+    payload = call_chess_api(board.fen())
+    score = parse_eval(payload.get("eval")) or 0.0
+    move = parse_engine_move(board, payload)
+    if move is None:
+        legal = list(board.legal_moves)
+        if not legal:
+            raise RuntimeError("engine no move")
+        move = legal[0]
+    engine_san = board.san(move)
+    engine_uci = move.uci()
+    from_square = chess.square_name(move.from_square)
+    to_square = chess.square_name(move.to_square)
+    board.push(move)
+    return engine_san, engine_uci, from_square, to_square, score
+
+
+@app.post("/api/v1/play", response_model=PlayResponse)
+def play(payload: PlayRequest) -> PlayResponse:
+    fen = (payload.fen or "").strip() or chess.STARTING_FEN
+    try:
+        board = chess.Board(fen)
+    except ValueError:
+        return play_state(chess.Board(), error="局面无效。")
+
+    user_san = ""
+    user_uci = ""
+    engine_san = ""
+    engine_uci = ""
+    from_square = ""
+    to_square = ""
+    eval_score = 0.0
+
+    uci = (payload.uci or "").strip()
+    if uci:
+        if board.turn != chess.WHITE:
+            return play_state(board, error="还没轮到你走。")
+        move = parse_user_uci(board, uci)
+        if move is None:
+            return play_state(board, error="这步不合法。")
+        user_san = board.san(move)
+        user_uci = move.uci()
+        from_square = chess.square_name(move.from_square)
+        to_square = chess.square_name(move.to_square)
+        board.push(move)
+        if board.is_game_over(claim_draw=True):
+            return play_state(
+                board,
+                user_san=user_san,
+                user_uci=user_uci,
+                from_square=from_square,
+                to_square=to_square,
+            )
+
+    if board.turn == chess.BLACK and not board.is_game_over(claim_draw=True):
+        try:
+            engine_san, engine_uci, from_square, to_square, eval_score = apply_engine_move(board)
+        except (httpx.HTTPError, httpx.RequestError, RuntimeError, KeyError, TypeError, ValueError):
+            return play_state(
+                board,
+                error="下棋引擎暂时不可用，点「让电脑走」再试。",
+                user_san=user_san,
+                user_uci=user_uci,
+            )
+
+    return play_state(
+        board,
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
+        eval_score=eval_score,
+    )
