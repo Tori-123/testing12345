@@ -233,10 +233,11 @@ export default function ChessBoard({
   const clickable = typeof onSquareClick === "function" && !disabled;
 
   return (
-    <div
-      className="relative grid aspect-square w-full max-h-full grid-cols-8 grid-rows-8"
-      aria-label="棋盘"
-    >
+    <div className="board-slot">
+      <div
+        className="board-fit-square grid grid-cols-8 grid-rows-8"
+        aria-label="棋盘"
+      >
       {squares.map((sq) => {
         const lastMove = sq.name === from_square || sq.name === to_square;
         const isSelected = sq.name === selected;
@@ -249,7 +250,7 @@ export default function ChessBoard({
             data-square={sq.name}
             disabled={!clickable}
             onClick={() => onSquareClick?.(sq.name)}
-            className={`relative flex items-center justify-center ${
+            className={`relative flex touch-manipulation items-center justify-center ${
               isDark(sq.name) ? "bg-[#a56b3c]" : "bg-[#f3d7a8]"
             } ${lastMove || isSelected ? "ring-2 ring-inset ring-red-600" : ""} ${
               isTarget ? "bg-red-600/35" : ""
@@ -257,7 +258,7 @@ export default function ChessBoard({
           >
             {hiddenByFlight ? null : <PieceGlyph code={sq.code} />}
             {isTarget && !sq.code ? (
-              <span className="absolute h-3 w-3 rounded-full bg-red-600" />
+              <span className="absolute h-[22%] w-[22%] max-h-3 max-w-3 min-h-[0.4rem] min-w-[0.4rem] rounded-full bg-red-600" />
             ) : null}
           </button>
         );
@@ -271,6 +272,7 @@ export default function ChessBoard({
           duration={flight.duration}
         />
       ) : null}
+      </div>
     </div>
   );
 }

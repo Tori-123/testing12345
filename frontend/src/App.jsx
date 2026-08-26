@@ -6,6 +6,13 @@ import ChessBoard, {
 } from "./ChessBoard.jsx";
 import GomokuGame from "./GomokuGame.jsx";
 import XiangqiGame from "./XiangqiGame.jsx";
+import {
+  GameControls,
+  GameHeader,
+  GameOverDialog,
+  GameScreen,
+  MoveHistory,
+} from "./GameShell.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -64,53 +71,21 @@ function GameOverModal({ result, onRestart, onDismiss }) {
   const mate = result === "1-0" || result === "0-1";
   const title = mate ? "将死" : "对局结束";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="game-over-title"
-        className="w-[min(90vw,22rem)] rounded-none bg-white px-8 py-10 text-center text-neutral-900 shadow-sm"
-      >
-        <p id="game-over-title" className="text-4xl font-bold text-red-600">
-          {title}
-        </p>
-        <p className="mt-4 text-base leading-relaxed">{resultCopy(result)}</p>
-        <button
-          type="button"
-          onClick={onRestart}
-          className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
-        >
-          再来一局
-        </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
-        >
-          留下看棋盘
-        </button>
-      </div>
-    </div>
+    <GameOverDialog
+      title={title}
+      message={resultCopy(result)}
+      onRestart={onRestart}
+      onDismiss={onDismiss}
+    />
   );
 }
 
 function BrandStrip({ onBack }) {
   return (
-    <header className="flex h-[8%] min-h-[3rem] shrink-0 items-center justify-between px-4">
-      <div className="flex items-center gap-4">
-        <span className="text-lg font-semibold tracking-tight">PlyHan</span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
-        >
-          选择棋种
-        </button>
-      </div>
-      <p className="max-w-[60%] text-right text-sm text-neutral-500">
-        你执白。走一步，电脑用下棋 API 回一步。
-      </p>
-    </header>
+    <GameHeader
+      onBack={onBack}
+      slogan="你执白。走一步，电脑用下棋 API 回一步。"
+    />
   );
 }
 
@@ -340,33 +315,33 @@ function ChessGame({ onBack }) {
   const waitingForEngine = phase === "idle" && turn === "black" && !gameOver;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100">
-      <BrandStrip onBack={onBack} />
-      <div className="flex min-h-0 flex-1 gap-4 px-4 pb-4">
-        <div className="flex min-h-0 w-[58%] flex-col">
-          <ChessBoard
-            fen={fen}
-            from_square={fromSquare}
-            to_square={toSquare}
-            selected={selected}
-            targets={targets}
-            flight={flight}
-            disabled={busy}
-            onSquareClick={handleSquareClick}
-          />
-        </div>
-        <aside className="flex min-h-0 w-[42%] flex-col rounded-none bg-white p-6 text-neutral-900 shadow-sm">
+    <GameScreen
+      header={<BrandStrip onBack={onBack} />}
+      board={
+        <ChessBoard
+          fen={fen}
+          from_square={fromSquare}
+          to_square={toSquare}
+          selected={selected}
+          targets={targets}
+          flight={flight}
+          disabled={busy}
+          onSquareClick={handleSquareClick}
+        />
+      }
+      panel={
+        <>
           <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
           <div className="mt-3 font-mono text-sm text-neutral-500">
             评估 {formatEval(evalScore)}
           </div>
-          <label className="mt-4 flex items-center justify-between gap-3 text-sm text-neutral-700">
+          <label className="mt-4 flex flex-col gap-2 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
             <span>电脑难度</span>
             <select
               value={difficulty}
               disabled={phase !== "idle"}
               onChange={(event) => setDifficulty(event.target.value)}
-              className="rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
+              className="min-w-0 max-w-full rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
             >
               <option value="beginner">入门</option>
               <option value="easy">简单</option>
@@ -377,7 +352,7 @@ function ChessGame({ onBack }) {
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
           ) : null}
-          <div className="mt-4 flex gap-2">
+          <GameControls>
             <button
               type="button"
               onClick={handleRestart}
@@ -394,14 +369,9 @@ function ChessGame({ onBack }) {
                 让电脑走
               </button>
             ) : null}
-          </div>
-          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
-            <h2 className="text-xs font-semibold tracking-wide text-neutral-500">
-              着法
-            </h2>
-            {history.length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-500">还没有走子。</p>
-            ) : (
+          </GameControls>
+          <MoveHistory title="着法" empty="还没有走子。">
+            {history.length === 0 ? null : (
               <ol className="mt-2 space-y-1 font-mono text-sm">
                 {history.map((row) => (
                   <li key={row.n}>
@@ -410,43 +380,47 @@ function ChessGame({ onBack }) {
                 ))}
               </ol>
             )}
-          </div>
-        </aside>
-      </div>
-      {overOpen ? (
-        <GameOverModal
-          result={result}
-          onRestart={handleRestart}
-          onDismiss={() => setOverOpen(false)}
-        />
-      ) : null}
-    </div>
+          </MoveHistory>
+        </>
+      }
+      modal={
+        overOpen ? (
+          <GameOverModal
+            result={result}
+            onRestart={handleRestart}
+            onDismiss={() => setOverOpen(false)}
+          />
+        ) : null
+      }
+    />
   );
 }
 
 function ModePicker({ onSelect }) {
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-6 py-8 font-sans text-neutral-100">
-      <header className="flex items-start justify-between">
-        <div>
-          <p className="text-lg font-semibold tracking-tight">PlyHan</p>
-          <h1 className="mt-10 text-5xl font-bold leading-tight">
+    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh] [padding-top:max(1.25rem,env(safe-area-inset-top))] [padding-bottom:max(1.25rem,env(safe-area-inset-bottom))] [padding-left:max(1rem,env(safe-area-inset-left))] [padding-right:max(1rem,env(safe-area-inset-right))]">
+      <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-base font-semibold tracking-tight sm:text-lg">PlyHan</p>
+          <h1 className="mt-3 text-3xl font-bold leading-tight sm:mt-6 sm:text-4xl md:mt-10 md:text-5xl">
             今天下哪一种？
           </h1>
         </div>
-        <p className="max-w-sm text-right text-sm leading-relaxed text-neutral-500">
+        <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
           选一个棋盘。你走一步，棋力引擎回一步。
         </p>
       </header>
-      <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-4 md:grid-cols-3">
+      <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:gap-4 md:grid-cols-3 md:content-center md:items-stretch">
         <button
           type="button"
           onClick={() => onSelect("chess")}
-          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
         >
           <span className="text-sm text-neutral-500">Chess API</span>
           <span>
-            <span className="block text-4xl font-bold">国际象棋</span>
+            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
+              国际象棋
+            </span>
             <span className="mt-3 block text-sm text-neutral-500">
               你执白，与 Stockfish 对弈
             </span>
@@ -456,11 +430,13 @@ function ModePicker({ onSelect }) {
         <button
           type="button"
           onClick={() => onSelect("gomoku")}
-          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
         >
           <span className="text-sm text-neutral-500">Rapfi</span>
           <span>
-            <span className="block text-4xl font-bold">五子棋</span>
+            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
+              五子棋
+            </span>
             <span className="mt-3 block text-sm text-neutral-500">
               你执黑，15×15 自由规则
             </span>
@@ -470,11 +446,13 @@ function ModePicker({ onSelect }) {
         <button
           type="button"
           onClick={() => onSelect("xiangqi")}
-          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
         >
           <span className="text-sm text-neutral-500">Pikafish</span>
           <span>
-            <span className="block text-4xl font-bold">中国象棋</span>
+            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
+              中国象棋
+            </span>
             <span className="mt-3 block text-sm text-neutral-500">
               你执红，本机引擎对弈
             </span>

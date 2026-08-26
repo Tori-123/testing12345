@@ -22,10 +22,11 @@ export default function GomokuBoard({
   const lastMove = moves[moves.length - 1];
 
   return (
-    <div
-      className="relative aspect-square max-h-full w-full overflow-hidden bg-[#d9a45f]"
-      aria-label="十五乘十五五子棋棋盘"
-    >
+    <div className="board-slot">
+      <div
+        className="board-fit-square overflow-hidden bg-[#d9a45f]"
+        aria-label="十五乘十五五子棋棋盘"
+      >
       <svg
         viewBox="-0.5 -0.5 15 15"
         className="pointer-events-none absolute inset-0 h-full w-full"
@@ -64,7 +65,7 @@ export default function GomokuBoard({
               }`}
               disabled={disabled || Boolean(player)}
               onClick={() => onPointClick(row, col)}
-              className="group relative flex items-center justify-center disabled:cursor-default"
+              className="group relative flex touch-manipulation items-center justify-center disabled:cursor-default"
             >
               {player ? (
                 <span
@@ -77,15 +78,16 @@ export default function GomokuBoard({
                   }`}
                 >
                   {isLast ? (
-                    <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600" />
+                    <span className="absolute left-1/2 top-1/2 h-[18%] w-[18%] max-h-1.5 max-w-1.5 min-h-[0.25rem] min-w-[0.25rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600" />
                   ) : null}
                 </span>
               ) : (
-                <span className="h-2.5 w-2.5 rounded-full bg-red-600 opacity-0 transition-opacity group-hover:opacity-60" />
+                <span className="h-[18%] w-[18%] max-h-2.5 max-w-2.5 min-h-[0.35rem] min-w-[0.35rem] rounded-full bg-red-600 opacity-0 transition-opacity group-hover:opacity-60 group-active:opacity-60" />
               )}
             </button>
           );
         })}
+      </div>
       </div>
     </div>
   );

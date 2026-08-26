@@ -59,9 +59,9 @@ export default function XiangqiBoard({
   const lastTo = lastMove?.to || "";
 
   return (
-    <div className="flex h-full min-h-0 w-full items-center justify-center">
+    <div className="board-slot">
       <div
-        className="relative aspect-[9/10] h-full max-h-full w-auto max-w-full"
+        className="board-fit-xiangqi"
         style={{
           background:
             "radial-gradient(circle at 30% 20%, #f3e0c2 0%, #d7b07a 55%, #b8894d 100%)",
@@ -159,7 +159,7 @@ export default function XiangqiBoard({
                   type="button"
                   disabled={disabled}
                   onClick={() => onSquareClick?.(square)}
-                  className={`relative flex items-center justify-center outline-none ${
+                  className={`relative flex touch-manipulation items-center justify-center outline-none ${
                     disabled ? "cursor-default" : "cursor-pointer"
                   }`}
                   aria-label={square}
@@ -171,11 +171,11 @@ export default function XiangqiBoard({
                     <span className="absolute inset-[12%] rounded-full border-2 border-red-600" />
                   ) : null}
                   {isTarget ? (
-                    <span className="absolute h-3 w-3 rounded-full bg-red-600/70" />
+                    <span className="absolute h-[22%] w-[22%] max-h-3 max-w-3 min-h-[0.4rem] min-w-[0.4rem] rounded-full bg-red-600/70" />
                   ) : null}
                   {piece ? (
                     <span
-                      className={`relative z-10 flex h-[72%] w-[72%] items-center justify-center rounded-full border-2 text-[clamp(0.85rem,2.2vw,1.35rem)] font-bold shadow-sm ${
+                      className={`relative z-10 flex h-[72%] w-[72%] items-center justify-center rounded-full border-2 text-[clamp(0.65rem,8cqi,1.35rem)] font-bold shadow-sm ${
                         isRed
                           ? "border-red-700 bg-[#fff4e8] text-red-700"
                           : "border-neutral-800 bg-[#f7f2ea] text-neutral-900"

@@ -5,6 +5,13 @@ import XiangqiBoard, {
   legalTargetsFor,
   pieceAtFen,
 } from "./XiangqiBoard.jsx";
+import {
+  GameControls,
+  GameHeader,
+  GameOverDialog,
+  GameScreen,
+  MoveHistory,
+} from "./GameShell.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -54,53 +61,18 @@ async function postXiangqi(fen, uci = "", difficulty = "normal") {
 
 function XiangqiHeader({ onBack }) {
   return (
-    <header className="flex h-[8%] min-h-[3rem] shrink-0 items-center justify-between px-4">
-      <div className="flex items-center gap-4">
-        <span className="text-lg font-semibold tracking-tight">PlyHan</span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
-        >
-          选择棋种
-        </button>
-      </div>
-      <p className="max-w-[60%] text-right text-sm text-neutral-500">
-        你执红。走一步，Pikafish 回一步。
-      </p>
-    </header>
+    <GameHeader onBack={onBack} slogan="你执红。走一步，Pikafish 回一步。" />
   );
 }
 
 function XiangqiGameOver({ result, onRestart, onDismiss }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="xiangqi-over-title"
-        className="w-[min(90vw,22rem)] rounded-none bg-white px-8 py-10 text-center text-neutral-900 shadow-sm"
-      >
-        <p id="xiangqi-over-title" className="text-4xl font-bold text-red-600">
-          对局结束
-        </p>
-        <p className="mt-4 text-base leading-relaxed">{resultCopy(result)}</p>
-        <button
-          type="button"
-          onClick={onRestart}
-          className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
-        >
-          再来一局
-        </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
-        >
-          留下看棋盘
-        </button>
-      </div>
-    </div>
+    <GameOverDialog
+      title="对局结束"
+      message={resultCopy(result)}
+      onRestart={onRestart}
+      onDismiss={onDismiss}
+    />
   );
 }
 
@@ -287,30 +259,30 @@ export default function XiangqiGame({ onBack }) {
       : "轮到你走。点选红子，再点合法落点。";
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100">
-      <XiangqiHeader onBack={onBack} />
-      <div className="flex min-h-0 flex-1 gap-4 px-4 pb-4">
-        <div className="flex min-h-0 w-[58%] flex-col">
-          <XiangqiBoard
-            fen={fen}
-            selected={selected}
-            legalTargets={targets}
-            lastMove={lastMove}
-            animating={animating}
-            disabled={busy}
-            onSquareClick={handleSquareClick}
-          />
-        </div>
-        <aside className="flex min-h-0 w-[42%] flex-col rounded-none bg-white p-6 text-neutral-900 shadow-sm">
+    <GameScreen
+      header={<XiangqiHeader onBack={onBack} />}
+      board={
+        <XiangqiBoard
+          fen={fen}
+          selected={selected}
+          legalTargets={targets}
+          lastMove={lastMove}
+          animating={animating}
+          disabled={busy}
+          onSquareClick={handleSquareClick}
+        />
+      }
+      panel={
+        <>
           <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
           <div className="mt-3 text-sm text-neutral-500">9×10 · 你执红</div>
-          <label className="mt-4 flex items-center justify-between gap-3 text-sm text-neutral-700">
+          <label className="mt-4 flex flex-col gap-2 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
             <span>电脑难度</span>
             <select
               value={difficulty}
               disabled={busy || sans.length > 0}
               onChange={(event) => setDifficulty(event.target.value)}
-              className="rounded-none border border-neutral-300 bg-white px-2 py-1"
+              className="min-w-0 max-w-full rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
             >
               <option value="beginner">入门</option>
               <option value="easy">简单</option>
@@ -330,7 +302,7 @@ export default function XiangqiGame({ onBack }) {
               </button>
             </div>
           ) : null}
-          <div className="mt-4 flex gap-2">
+          <GameControls>
             <button
               type="button"
               onClick={handleRestart}
@@ -338,12 +310,9 @@ export default function XiangqiGame({ onBack }) {
             >
               重新开局
             </button>
-          </div>
-          <div className="mt-6 min-h-0 flex-1 overflow-auto">
-            <h2 className="text-sm font-medium text-neutral-700">着法</h2>
-            {history.length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-500">还没有走子。</p>
-            ) : (
+          </GameControls>
+          <MoveHistory title="着法" empty="还没有走子。">
+            {history.length === 0 ? null : (
               <ol className="mt-2 space-y-1 font-mono text-sm">
                 {history.map((row) => (
                   <li key={row.n}>
@@ -352,16 +321,18 @@ export default function XiangqiGame({ onBack }) {
                 ))}
               </ol>
             )}
-          </div>
-        </aside>
-      </div>
-      {overOpen ? (
-        <XiangqiGameOver
-          result={result}
-          onRestart={handleRestart}
-          onDismiss={() => setOverOpen(false)}
-        />
-      ) : null}
-    </div>
+          </MoveHistory>
+        </>
+      }
+      modal={
+        overOpen ? (
+          <XiangqiGameOver
+            result={result}
+            onRestart={handleRestart}
+            onDismiss={() => setOverOpen(false)}
+          />
+        ) : null
+      }
+    />
   );
 }
