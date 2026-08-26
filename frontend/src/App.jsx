@@ -5,6 +5,7 @@ import ChessBoard, {
   pieceCodeAt,
 } from "./ChessBoard.jsx";
 import GomokuGame from "./GomokuGame.jsx";
+import XiangqiGame from "./XiangqiGame.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -437,7 +438,7 @@ function ModePicker({ onSelect }) {
           选一个棋盘。你走一步，棋力引擎回一步。
         </p>
       </header>
-      <div className="grid min-h-0 flex-1 grid-cols-2 items-center gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-4 md:grid-cols-3">
         <button
           type="button"
           onClick={() => onSelect("chess")}
@@ -466,6 +467,20 @@ function ModePicker({ onSelect }) {
           </span>
           <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
         </button>
+        <button
+          type="button"
+          onClick={() => onSelect("xiangqi")}
+          className="group flex h-64 flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-8 text-left transition-colors hover:border-red-600"
+        >
+          <span className="text-sm text-neutral-500">Pikafish</span>
+          <span>
+            <span className="block text-4xl font-bold">中国象棋</span>
+            <span className="mt-3 block text-sm text-neutral-500">
+              你执红，本机引擎对弈
+            </span>
+          </span>
+          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
+        </button>
       </div>
     </main>
   );
@@ -479,6 +494,9 @@ export default function App() {
   }
   if (selectedGame === "gomoku") {
     return <GomokuGame onBack={() => setSelectedGame(null)} />;
+  }
+  if (selectedGame === "xiangqi") {
+    return <XiangqiGame onBack={() => setSelectedGame(null)} />;
   }
   return <ModePicker onSelect={setSelectedGame} />;
 }

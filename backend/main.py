@@ -20,6 +20,18 @@ try:
 except ImportError:
     from rapfi import get_rapfi_engine
 
+try:
+    from .pikafish import get_pikafish_engine
+except ImportError:
+    from pikafish import get_pikafish_engine
+
+try:
+    from .xiangqi import START_FEN as XIANGQI_START_FEN
+    from .xiangqi import Board as XiangqiBoard
+except ImportError:
+    from xiangqi import START_FEN as XIANGQI_START_FEN
+    from xiangqi import Board as XiangqiBoard
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
@@ -58,6 +70,12 @@ GOMOKU_DIFFICULTY_STRENGTH = {
     "easy": 20,
     "normal": 60,
     "hard": 100,
+}
+XIANGQI_DIFFICULTY_MOVETIME_MS = {
+    "beginner": 50,
+    "easy": 150,
+    "normal": 400,
+    "hard": 1000,
 }
 
 app = FastAPI()
@@ -822,4 +840,125 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
         moves,
         user_move=user_move,
         engine_move=engine_move,
+    )
+
+
+class XiangqiPlayRequest(BaseModel):
+    fen: str = ""
+    uci: str = ""
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "normal"
+
+
+class XiangqiPlayResponse(BaseModel):
+    status: Literal["success", "error"]
+    error_message: str
+    fen: str
+    turn: Literal["red", "black", ""]
+    legal_uci: list[str]
+    user_san: str
+    user_uci: str
+    engine_san: str
+    engine_uci: str
+    from_square: str
+    to_square: str
+    game_over: bool
+    result: Literal["1-0", "0-1", ""]
+
+
+def xiangqi_play_state(
+    board: XiangqiBoard,
+    *,
+    error: str = "",
+    user_san: str = "",
+    user_uci: str = "",
+    engine_san: str = "",
+    engine_uci: str = "",
+    from_square: str = "",
+    to_square: str = "",
+) -> XiangqiPlayResponse:
+    over = board.game_over()
+    return XiangqiPlayResponse(
+        status="error" if error else "success",
+        error_message=error,
+        fen=board.fen(),
+        turn="" if over else ("red" if board.turn == "w" else "black"),
+        legal_uci=board.generate_legal_moves(),
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
+        game_over=over,
+        result=board.result() if over else "",
+    )
+
+
+@app.post("/api/v1/xiangqi/play", response_model=XiangqiPlayResponse)
+def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
+    fen = (payload.fen or "").strip() or XIANGQI_START_FEN
+    try:
+        board = XiangqiBoard(fen)
+    except ValueError:
+        return xiangqi_play_state(XiangqiBoard(), error="局面无效。")
+
+    user_san = ""
+    user_uci = ""
+    engine_san = ""
+    engine_uci = ""
+    from_square = ""
+    to_square = ""
+
+    uci = (payload.uci or "").strip().lower()
+    if uci:
+        if board.turn != "w":
+            return xiangqi_play_state(board, error="还没轮到你走。")
+        if not board.is_legal(uci):
+            return xiangqi_play_state(board, error="这步不合法。")
+        user_san = board.san_like(uci)
+        user_uci = uci
+        from_square = uci[:2]
+        to_square = uci[2:]
+        board.push_uci(uci)
+        if board.game_over():
+            return xiangqi_play_state(
+                board,
+                user_san=user_san,
+                user_uci=user_uci,
+                from_square=from_square,
+                to_square=to_square,
+            )
+
+    if board.turn == "b" and not board.game_over():
+        movetime = XIANGQI_DIFFICULTY_MOVETIME_MS[payload.difficulty]
+        try:
+            engine_uci = get_pikafish_engine().best_move(board.fen(), movetime_ms=movetime)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            return xiangqi_play_state(
+                board,
+                error=f"中国象棋引擎暂时不可用：{exc}",
+                user_san=user_san,
+                user_uci=user_uci,
+            )
+        engine_uci = engine_uci.strip().lower()
+        if not board.is_legal(engine_uci):
+            return xiangqi_play_state(
+                board,
+                error="中国象棋引擎返回了非法着法，请重试。",
+                user_san=user_san,
+                user_uci=user_uci,
+            )
+        engine_san = board.san_like(engine_uci)
+        from_square = engine_uci[:2]
+        to_square = engine_uci[2:]
+        board.push_uci(engine_uci)
+
+    return xiangqi_play_state(
+        board,
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
     )
