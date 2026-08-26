@@ -78,6 +78,25 @@ export function GameControls({ children }) {
   );
 }
 
+export function DifficultySelect({ value, onChange, disabled }) {
+  return (
+    <label className="mt-4 flex flex-col gap-2 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
+      <span>电脑难度</span>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 max-w-full rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
+      >
+        <option value="beginner">入门（很弱）</option>
+        <option value="easy">简单</option>
+        <option value="normal">普通</option>
+        <option value="hard">困难（强）</option>
+      </select>
+    </label>
+  );
+}
+
 export function MoveHistory({ title, empty, children }) {
   return (
     <div className="mt-4 min-h-0 flex-1 overflow-y-auto">

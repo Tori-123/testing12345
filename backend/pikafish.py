@@ -2,6 +2,7 @@ import atexit
 import os
 import platform
 import queue
+import re
 import subprocess
 import threading
 import time
@@ -12,6 +13,9 @@ DEFAULT_MOVETIME_MS = int(os.getenv("PIKAFISH_MOVETIME_MS", "400"))
 READ_BUFFER_SECONDS = float(os.getenv("PIKAFISH_READ_BUFFER_SECONDS", "3"))
 THREADS = int(os.getenv("PIKAFISH_THREADS", "1"))
 HASH_MB = int(os.getenv("PIKAFISH_HASH", "16"))
+
+MULTIPV_RE = re.compile(r"\bmultipv\s+(\d+)\b", re.IGNORECASE)
+PV_RE = re.compile(r"\bpv\s+([a-i][0-9][a-i][0-9]\w*)", re.IGNORECASE)
 
 
 def _binary_candidates() -> list[str]:
@@ -178,30 +182,68 @@ class PikafishEngine:
         self.close()
         self.start()
 
-    def _read_bestmove(self, timeout_ms: int) -> str:
-        deadline = time.monotonic() + timeout_ms / 1000 + READ_BUFFER_SECONDS + 2.0
+    def _read_search(
+        self,
+        timeout_ms: int,
+        multipv: int,
+    ) -> tuple[str, list[str]]:
+        deadline = time.monotonic() + timeout_ms / 1000 + READ_BUFFER_SECONDS + 5.0
+        by_index: dict[int, str] = {}
+        best = ""
         while time.monotonic() < deadline:
             line = self._read_line(max(0.05, deadline - time.monotonic()))
+            if line.startswith("info ") and " pv " in line:
+                multipv_match = MULTIPV_RE.search(line)
+                pv_match = PV_RE.search(line)
+                if pv_match:
+                    move = pv_match.group(1).strip().lower()
+                    index = int(multipv_match.group(1)) if multipv_match else 1
+                    by_index[index] = move
             if line.startswith("bestmove"):
                 parts = line.split()
                 if len(parts) < 2:
                     raise RuntimeError("Pikafish 返回空 bestmove")
-                move = parts[1].strip().lower()
-                if move in {"(none)", "0000", "none"}:
+                best = parts[1].strip().lower()
+                if best in {"(none)", "0000", "none"}:
                     raise RuntimeError("Pikafish 无合法着法")
-                return move
+                ranked = [by_index[i] for i in range(1, multipv + 1) if i in by_index]
+                if best and best not in ranked:
+                    ranked.insert(0, best)
+                if not ranked:
+                    ranked = [best]
+                return best, ranked
         raise RuntimeError("Pikafish 未返回 bestmove")
 
-    def best_move(self, fen: str, movetime_ms: int = DEFAULT_MOVETIME_MS) -> str:
+    def best_move(
+        self,
+        fen: str,
+        movetime_ms: int | None = DEFAULT_MOVETIME_MS,
+        *,
+        depth: int | None = None,
+        multipv: int = 1,
+        pick_index: int = 0,
+    ) -> str:
+        multipv = max(1, min(5, int(multipv)))
+        pick_index = max(0, int(pick_index))
         with self.lock:
             try:
                 self.start()
                 self._send("ucinewgame")
                 self._send("isready")
                 self._expect("readyok", timeout=10.0)
+                self._send(f"setoption name MultiPV value {multipv}")
                 self._send(f"position fen {fen}")
-                self._send(f"go movetime {max(10, int(movetime_ms))}")
-                return self._read_bestmove(movetime_ms)
+                if depth is not None:
+                    self._send(f"go depth {max(1, int(depth))}")
+                    timeout_ms = max(500, int(depth) * 2500)
+                else:
+                    think = max(10, int(movetime_ms or DEFAULT_MOVETIME_MS))
+                    self._send(f"go movetime {think}")
+                    timeout_ms = think
+                best, ranked = self._read_search(timeout_ms, multipv)
+                if pick_index < len(ranked):
+                    return ranked[pick_index]
+                return ranked[-1] if ranked else best
             except Exception:
                 self.restart()
                 raise

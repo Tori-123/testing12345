@@ -7,6 +7,7 @@ import ChessBoard, {
 import GomokuGame from "./GomokuGame.jsx";
 import XiangqiGame from "./XiangqiGame.jsx";
 import {
+  DifficultySelect,
   GameControls,
   GameHeader,
   GameOverDialog,
@@ -335,20 +336,11 @@ function ChessGame({ onBack }) {
           <div className="mt-3 font-mono text-sm text-neutral-500">
             评估 {formatEval(evalScore)}
           </div>
-          <label className="mt-4 flex flex-col gap-2 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
-            <span>电脑难度</span>
-            <select
-              value={difficulty}
-              disabled={phase !== "idle"}
-              onChange={(event) => setDifficulty(event.target.value)}
-              className="min-w-0 max-w-full rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
-            >
-              <option value="beginner">入门</option>
-              <option value="easy">简单</option>
-              <option value="normal">普通</option>
-              <option value="hard">困难</option>
-            </select>
-          </label>
+          <DifficultySelect
+            value={difficulty}
+            disabled={phase !== "idle"}
+            onChange={setDifficulty}
+          />
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
           ) : null}

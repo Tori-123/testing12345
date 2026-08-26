@@ -57,25 +57,32 @@ LLM_TIMEOUT = 20.0
 CHESS_WORKERS = 4
 PLAY_DEPTH = 6
 CHESS_DIFFICULTY = {
-    "beginner": (1, 10),
-    "easy": (3, 25),
-    "normal": (6, 50),
-    "hard": (10, 100),
+    # depth, maxThinkingTime, variants, mistake_percent (次优注入)
+    "beginner": (2, 20, 5, 55),
+    "easy": (4, 40, 5, 28),
+    "normal": (8, 50, 1, 0),
+    "hard": (12, 100, 1, 0),
 }
 GOMOKU_BOARD_SIZE = 15
 GOMOKU_SEARCH_MS = 800
-BEGINNER_MISTAKE_PERCENT = 20
 GOMOKU_DIFFICULTY_STRENGTH = {
-    "beginner": 20,
-    "easy": 20,
+    "beginner": 5,
+    "easy": 25,
     "normal": 60,
     "hard": 100,
 }
-XIANGQI_DIFFICULTY_MOVETIME_MS = {
-    "beginner": 50,
-    "easy": 150,
-    "normal": 400,
-    "hard": 1000,
+GOMOKU_MISTAKE_PERCENT = {
+    "beginner": 45,
+    "easy": 20,
+    "normal": 0,
+    "hard": 0,
+}
+XIANGQI_DIFFICULTY = {
+    # depth or None, movetime_ms or None, multipv, pick_index (0-based among multipv)
+    "beginner": {"depth": 2, "movetime_ms": None, "multipv": 5, "pick_index": 3},
+    "easy": {"depth": 4, "movetime_ms": None, "multipv": 5, "pick_index": 2},
+    "normal": {"depth": 8, "movetime_ms": None, "multipv": 1, "pick_index": 0},
+    "hard": {"depth": None, "movetime_ms": 800, "multipv": 1, "pick_index": 0},
 }
 
 app = FastAPI()
@@ -219,14 +226,15 @@ def call_chess_api(
     fen: str,
     depth: int | None = None,
     max_thinking_time: int = 50,
-) -> dict:
+    variants: int = 1,
+) -> dict | list:
     response = httpx.post(
         CHESS_API_URL,
         json={
             "fen": fen,
             "depth": PLAY_DEPTH if depth is None else depth,
             "maxThinkingTime": max_thinking_time,
-            "variants": 1,
+            "variants": max(1, min(5, int(variants))),
         },
         timeout=CHESS_TIMEOUT,
         headers={"Content-Type": "application/json"},
@@ -238,7 +246,7 @@ def call_chess_api(
         payload = response.json()
     except json.JSONDecodeError as exc:
         raise RuntimeError("chess api non-json") from exc
-    if not isinstance(payload, dict):
+    if not isinstance(payload, (dict, list)):
         raise RuntimeError("chess api non-json")
     return payload
 
@@ -517,6 +525,74 @@ def parse_engine_move(board: chess.Board, payload: dict) -> chess.Move | None:
     return None
 
 
+def chess_variant_payloads(payload: dict | list) -> list[dict]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("variants", "moves", "pvs"):
+        nested = payload.get(key)
+        if isinstance(nested, list) and nested:
+            return [item for item in nested if isinstance(item, dict)]
+    return [payload]
+
+
+def find_chess_mate_in_one(board: chess.Board) -> chess.Move | None:
+    for move in board.legal_moves:
+        board.push(move)
+        is_mate = board.is_checkmate()
+        board.pop()
+        if is_mate:
+            return move
+    return None
+
+
+def chess_position_seed(fen: str) -> int:
+    return sum((index + 1) * ord(char) for index, char in enumerate(fen))
+
+
+def weaker_chess_move(
+    board: chess.Board,
+    best: chess.Move,
+    mistake_percent: int,
+) -> chess.Move:
+    mate = find_chess_mate_in_one(board)
+    if mate is not None:
+        return mate
+    if mistake_percent <= 0:
+        return best
+    if chess_position_seed(board.fen()) % 100 >= mistake_percent:
+        return best
+
+    piece_value = {
+        chess.PAWN: 1,
+        chess.KNIGHT: 3,
+        chess.BISHOP: 3,
+        chess.ROOK: 5,
+        chess.QUEEN: 9,
+        chess.KING: 0,
+    }
+    candidates: list[chess.Move] = []
+    for move in board.legal_moves:
+        if move == best:
+            continue
+        candidates.append(move)
+    if not candidates:
+        return best
+
+    def weakness_key(move: chess.Move) -> tuple[int, int, str]:
+        captured = board.piece_at(move.to_square)
+        capture_score = piece_value.get(captured.piece_type, 0) if captured else 0
+        board.push(move)
+        gives_check = board.is_check()
+        board.pop()
+        return (1 if gives_check else 0, capture_score, move.uci())
+
+    ordered = sorted(candidates, key=weakness_key)
+    pool = ordered[: max(1, len(ordered) // 2)]
+    return pool[chess_position_seed(board.fen()) % len(pool)]
+
+
 def play_state(
     board: chess.Board,
     *,
@@ -552,19 +628,40 @@ def apply_engine_move(
     board: chess.Board,
     difficulty: str,
 ) -> tuple[str, str, str, str, float]:
-    depth, max_thinking_time = CHESS_DIFFICULTY[difficulty]
+    depth, max_thinking_time, variants, mistake_percent = CHESS_DIFFICULTY[difficulty]
     payload = call_chess_api(
         board.fen(),
         depth=depth,
         max_thinking_time=max_thinking_time,
+        variants=variants,
     )
-    score = parse_eval(payload.get("eval")) or 0.0
-    move = parse_engine_move(board, payload)
-    if move is None:
+    variant_payloads = chess_variant_payloads(payload)
+    score = 0.0
+    ranked_moves: list[chess.Move] = []
+    for item in variant_payloads:
+        parsed = parse_engine_move(board, item)
+        if parsed is None:
+            continue
+        if parsed not in ranked_moves:
+            ranked_moves.append(parsed)
+        if score == 0.0:
+            score = parse_eval(item.get("eval")) or 0.0
+
+    if not ranked_moves:
         legal = list(board.legal_moves)
         if not legal:
             raise RuntimeError("engine no move")
-        move = legal[0]
+        ranked_moves = [legal[0]]
+
+    # Prefer later (weaker) multipv entries for lower difficulties when API provides them.
+    if difficulty == "beginner" and len(ranked_moves) >= 4:
+        move = ranked_moves[min(len(ranked_moves) - 1, 3 + chess_position_seed(board.fen()) % 2)]
+    elif difficulty == "easy" and len(ranked_moves) >= 3:
+        move = ranked_moves[2]
+    else:
+        move = ranked_moves[0]
+
+    move = weaker_chess_move(board, move, mistake_percent)
     engine_san = board.san(move)
     engine_uci = move.uci()
     from_square = chess.square_name(move.from_square)
@@ -687,12 +784,15 @@ def gomoku_history_seed(moves: list[GomokuMove]) -> int:
     )
 
 
-def beginner_gomoku_move(
+def weakened_gomoku_move(
     moves: list[GomokuMove],
     rapfi_row: int,
     rapfi_col: int,
+    mistake_percent: int,
 ) -> tuple[int, int]:
-    if gomoku_history_seed(moves) % 100 >= BEGINNER_MISTAKE_PERCENT:
+    if mistake_percent <= 0:
+        return rapfi_row, rapfi_col
+    if gomoku_history_seed(moves) % 100 >= mistake_percent:
         return rapfi_row, rapfi_col
 
     occupied = {(move.row, move.col) for move in moves}
@@ -831,8 +931,13 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
             user_move=user_move,
         )
 
-    if payload.difficulty == "beginner":
-        row, col = beginner_gomoku_move(moves, row, col)
+    if payload.difficulty in GOMOKU_MISTAKE_PERCENT:
+        row, col = weakened_gomoku_move(
+            moves,
+            row,
+            col,
+            GOMOKU_MISTAKE_PERCENT[payload.difficulty],
+        )
 
     engine_move = GomokuMove(row=row, col=col, player="white")
     moves.append(engine_move)
@@ -894,6 +999,19 @@ def xiangqi_play_state(
     )
 
 
+def xiangqi_mate_in_one(board: XiangqiBoard) -> str:
+    for uci in board.generate_legal_moves():
+        trial = board.copy()
+        trial.push_uci(uci)
+        if trial.game_over() and trial.result() == "0-1":
+            return uci
+    return ""
+
+
+def xiangqi_position_seed(fen: str) -> int:
+    return sum((index + 1) * ord(char) for index, char in enumerate(fen))
+
+
 @app.post("/api/v1/xiangqi/play", response_model=XiangqiPlayResponse)
 def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
     fen = (payload.fen or "").strip() or XIANGQI_START_FEN
@@ -930,9 +1048,25 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
             )
 
     if board.turn == "b" and not board.game_over():
-        movetime = XIANGQI_DIFFICULTY_MOVETIME_MS[payload.difficulty]
+        settings = XIANGQI_DIFFICULTY[payload.difficulty]
+        pick_index = settings["pick_index"]
+        if payload.difficulty == "beginner":
+            pick_index = min(
+                settings["multipv"] - 1,
+                settings["pick_index"] + (xiangqi_position_seed(board.fen()) % 2),
+            )
         try:
-            engine_uci = get_pikafish_engine().best_move(board.fen(), movetime_ms=movetime)
+            mate_uci = xiangqi_mate_in_one(board)
+            if mate_uci:
+                engine_uci = mate_uci
+            else:
+                engine_uci = get_pikafish_engine().best_move(
+                    board.fen(),
+                    movetime_ms=settings["movetime_ms"],
+                    depth=settings["depth"],
+                    multipv=settings["multipv"],
+                    pick_index=pick_index,
+                )
         except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
             return xiangqi_play_state(
                 board,
