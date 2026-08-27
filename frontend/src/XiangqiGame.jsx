@@ -26,8 +26,8 @@ function sleep(ms) {
 }
 
 function resultCopy(result) {
-  if (result === "1-0") return "将死或困毙。你赢了。";
-  if (result === "0-1") return "将死或困毙。电脑赢了。";
+  if (result === "1-0") return "将死。你赢了。";
+  if (result === "0-1") return "将死。电脑赢了。";
   return "对局结束。";
 }
 
@@ -43,7 +43,7 @@ function pairMoves(sans) {
   return rows;
 }
 
-async function postXiangqi(fen, uci = "", difficulty = "normal") {
+async function postXiangqi(fen, uci = "", difficulty = "easy") {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -87,7 +87,7 @@ export default function XiangqiGame({ onBack }) {
   const [gameOver, setGameOver] = useState(false);
   const [result, setResult] = useState("");
   const [overOpen, setOverOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState("normal");
+  const [difficulty, setDifficulty] = useState("easy");
   const [lastMove, setLastMove] = useState(null);
   const [animating, setAnimating] = useState(null);
   const requestGeneration = useRef(0);

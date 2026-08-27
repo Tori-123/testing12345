@@ -92,3 +92,43 @@
   "cue": "下次想冲兵赶子之前，先问两件事：被赶的棋有没有比退让更狠的吃法；自己营地里有没有一只棋正少保护。尤其是王前兵和中心兵，少看一步就会变成今晚这种 Qxe3+。"
 }
 ```
+
+---
+
+## 5. 五子棋房间（人对人）
+
+无账号。房间存在服务端内存，TTL 约 2 小时。不调用 Rapfi。创建者执黑，加入者执白。
+
+### `POST /api/v1/gomoku/rooms`
+
+无请求体。成功时返回房间码、黑方 `token`、空棋盘。
+
+### `POST /api/v1/gomoku/rooms/{code}/join`
+
+```json
+{ "token": "" }
+```
+
+`token` 可空（新白方）或带回刷新前的座位令牌。房间已满且 token 对不上则 `status` 为 `"error"`。
+
+### `GET /api/v1/gomoku/rooms/{code}?token=`
+
+只读快照。
+
+房间响应第一层字段：`status` `error_message` `code` `seat` `token` `black_ready` `white_ready` `moves` `turn` `game_over` `result`。`moves` 项为 `{ "row", "col", "player" }`，`player` 为 `"black"` 或 `"white"`。
+
+### WebSocket `/api/v1/gomoku/rooms/{code}/ws?token=`
+
+服务端推送 `{ "type": "state", ...快照字段 }` 或 `{ "type": "error", "error_message": "..." }`。
+
+客户端：
+
+```json
+{ "type": "move", "row": 7, "col": 7 }
+```
+
+```json
+{ "type": "restart" }
+```
+
+前端邀请链接用查询串，不引入路由库：`/?game=gomoku&r={code}`。

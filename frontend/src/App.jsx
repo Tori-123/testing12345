@@ -52,7 +52,7 @@ function pairMoves(sans) {
   return rows;
 }
 
-async function postPlay(fen, uci = "", difficulty = "normal") {
+async function postPlay(fen, uci = "", difficulty = "easy") {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -105,7 +105,7 @@ function ChessGame({ onBack }) {
   const [turn, setTurn] = useState("white");
   const [flight, setFlight] = useState(null);
   const [overOpen, setOverOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState("normal");
+  const [difficulty, setDifficulty] = useState("easy");
   const requestGen = useRef(0);
 
   const busy = phase !== "idle" || gameOver;
@@ -457,13 +457,48 @@ function ModePicker({ onSelect }) {
 }
 
 export default function App() {
-  const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(() =>
+    new URLSearchParams(window.location.search).get("game") === "gomoku"
+      ? "gomoku"
+      : null,
+  );
+  const [gomokuRoom, setGomokuRoom] = useState(
+    () =>
+      (
+        new URLSearchParams(window.location.search).get("r") || ""
+      ).toUpperCase(),
+  );
+
+  function clearGomokuInvite() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("game");
+    url.searchParams.delete("r");
+    window.history.replaceState({}, "", url);
+    setGomokuRoom("");
+  }
+
+  function writeGomokuInvite(code) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("game", "gomoku");
+    url.searchParams.set("r", code);
+    window.history.replaceState({}, "", url);
+    setGomokuRoom(code);
+  }
 
   if (selectedGame === "chess") {
     return <ChessGame onBack={() => setSelectedGame(null)} />;
   }
   if (selectedGame === "gomoku") {
-    return <GomokuGame onBack={() => setSelectedGame(null)} />;
+    return (
+      <GomokuGame
+        initialRoomCode={gomokuRoom}
+        onBack={() => {
+          clearGomokuInvite();
+          setSelectedGame(null);
+        }}
+        onRoomCode={writeGomokuInvite}
+      />
+    );
   }
   if (selectedGame === "xiangqi") {
     return <XiangqiGame onBack={() => setSelectedGame(null)} />;

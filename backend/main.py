@@ -16,6 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 try:
+    from .gomoku_rooms import router as gomoku_room_router
+except ImportError:
+    from gomoku_rooms import router as gomoku_room_router
+
+try:
     from .rapfi import get_rapfi_engine
 except ImportError:
     from rapfi import get_rapfi_engine
@@ -28,9 +33,11 @@ except ImportError:
 try:
     from .xiangqi import START_FEN as XIANGQI_START_FEN
     from .xiangqi import Board as XiangqiBoard
+    from .xiangqi import parse_uci as parse_xiangqi_uci
 except ImportError:
     from xiangqi import START_FEN as XIANGQI_START_FEN
     from xiangqi import Board as XiangqiBoard
+    from xiangqi import parse_uci as parse_xiangqi_uci
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
@@ -58,31 +65,70 @@ CHESS_WORKERS = 4
 PLAY_DEPTH = 6
 CHESS_DIFFICULTY = {
     # depth, maxThinkingTime, variants, mistake_percent (次优注入)
-    "beginner": (2, 20, 5, 55),
-    "easy": (4, 40, 5, 28),
-    "normal": (8, 50, 1, 0),
-    "hard": (12, 100, 1, 0),
+    # Midpoint of first-version tables and the later weaker tables.
+    "beginner": (2, 20, 5, 63),
+    "easy": (3, 30, 5, 37),
+    "normal": (6, 45, 2, 9),
+    "hard": (10, 75, 1, 0),
 }
 GOMOKU_BOARD_SIZE = 15
-GOMOKU_SEARCH_MS = 800
+GOMOKU_SEARCH_MS = {
+    "beginner": 600,
+    "easy": 650,
+    "normal": 800,
+    "hard": 800,
+}
 GOMOKU_DIFFICULTY_STRENGTH = {
-    "beginner": 5,
-    "easy": 25,
-    "normal": 60,
-    "hard": 100,
+    "beginner": 3,
+    "easy": 17,
+    "normal": 41,
+    "hard": 85,
 }
 GOMOKU_MISTAKE_PERCENT = {
-    "beginner": 45,
-    "easy": 20,
-    "normal": 0,
+    "beginner": 58,
+    "easy": 30,
+    "normal": 9,
     "hard": 0,
 }
 XIANGQI_DIFFICULTY = {
-    # depth or None, movetime_ms or None, multipv, pick_index (0-based among multipv)
-    "beginner": {"depth": 2, "movetime_ms": None, "multipv": 5, "pick_index": 3},
-    "easy": {"depth": 4, "movetime_ms": None, "multipv": 5, "pick_index": 2},
-    "normal": {"depth": 8, "movetime_ms": None, "multipv": 1, "pick_index": 0},
-    "hard": {"depth": None, "movetime_ms": 800, "multipv": 1, "pick_index": 0},
+    # depth or None, movetime_ms or None, multipv, pick_index, mistake_percent
+    "beginner": {
+        "depth": 2,
+        "movetime_ms": None,
+        "multipv": 5,
+        "pick_index": 3,
+        "mistake_percent": 35,
+    },
+    "easy": {
+        "depth": 3,
+        "movetime_ms": None,
+        "multipv": 5,
+        "pick_index": 2,
+        "mistake_percent": 20,
+    },
+    "normal": {
+        "depth": 6,
+        "movetime_ms": None,
+        "multipv": 2,
+        "pick_index": 0,
+        "mistake_percent": 8,
+    },
+    "hard": {
+        "depth": None,
+        "movetime_ms": 400,
+        "multipv": 1,
+        "pick_index": 0,
+        "mistake_percent": 0,
+    },
+}
+XIANGQI_PIECE_VALUE = {
+    "K": 0,
+    "A": 2,
+    "B": 2,
+    "N": 4,
+    "R": 9,
+    "C": 4,
+    "P": 1,
 }
 
 app = FastAPI()
@@ -93,6 +139,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(gomoku_room_router)
 
 
 class AnalyzeRequest(BaseModel):
@@ -466,7 +513,7 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 class PlayRequest(BaseModel):
     fen: str = ""
     uci: str = ""
-    difficulty: Literal["beginner", "easy", "normal", "hard"] = "normal"
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
 
 
 class PlayResponse(BaseModel):
@@ -551,14 +598,21 @@ def chess_position_seed(fen: str) -> int:
     return sum((index + 1) * ord(char) for index, char in enumerate(fen))
 
 
+def force_engine_mate(difficulty: str) -> bool:
+    return difficulty in {"normal", "hard"}
+
+
 def weaker_chess_move(
     board: chess.Board,
     best: chess.Move,
     mistake_percent: int,
+    *,
+    force_mate: bool = True,
 ) -> chess.Move:
-    mate = find_chess_mate_in_one(board)
-    if mate is not None:
-        return mate
+    if force_mate:
+        mate = find_chess_mate_in_one(board)
+        if mate is not None:
+            return mate
     if mistake_percent <= 0:
         return best
     if chess_position_seed(board.fen()) % 100 >= mistake_percent:
@@ -589,7 +643,7 @@ def weaker_chess_move(
         return (1 if gives_check else 0, capture_score, move.uci())
 
     ordered = sorted(candidates, key=weakness_key)
-    pool = ordered[: max(1, len(ordered) // 2)]
+    pool = ordered[: max(1, len(ordered) // 3)]
     return pool[chess_position_seed(board.fen()) % len(pool)]
 
 
@@ -661,7 +715,12 @@ def apply_engine_move(
     else:
         move = ranked_moves[0]
 
-    move = weaker_chess_move(board, move, mistake_percent)
+    move = weaker_chess_move(
+        board,
+        move,
+        mistake_percent,
+        force_mate=force_engine_mate(difficulty),
+    )
     engine_san = board.san(move)
     engine_uci = move.uci()
     from_square = chess.square_name(move.from_square)
@@ -741,7 +800,7 @@ class GomokuMove(BaseModel):
 
 class GomokuPlayRequest(BaseModel):
     moves: list[GomokuMove] = Field(default_factory=list, max_length=225)
-    difficulty: Literal["beginner", "easy", "normal", "hard"] = "normal"
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
 
 
 class GomokuPlayResponse(BaseModel):
@@ -789,6 +848,8 @@ def weakened_gomoku_move(
     rapfi_row: int,
     rapfi_col: int,
     mistake_percent: int,
+    *,
+    force_mate: bool = True,
 ) -> tuple[int, int]:
     if mistake_percent <= 0:
         return rapfi_row, rapfi_col
@@ -813,7 +874,7 @@ def weakened_gomoku_move(
         )
         == "white"
     ]
-    if immediate_wins:
+    if force_mate and immediate_wins:
         return sorted(immediate_wins)[0]
 
     candidates: set[tuple[int, int]] = set()
@@ -908,7 +969,7 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
                 {"row": move.row, "col": move.col, "player": move.player}
                 for move in moves
             ],
-            timeout_ms=GOMOKU_SEARCH_MS,
+            timeout_ms=GOMOKU_SEARCH_MS[payload.difficulty],
             strength_level=GOMOKU_DIFFICULTY_STRENGTH[payload.difficulty],
         )
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
@@ -937,6 +998,7 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
             row,
             col,
             GOMOKU_MISTAKE_PERCENT[payload.difficulty],
+            force_mate=force_engine_mate(payload.difficulty),
         )
 
     engine_move = GomokuMove(row=row, col=col, player="white")
@@ -951,7 +1013,7 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
 class XiangqiPlayRequest(BaseModel):
     fen: str = ""
     uci: str = ""
-    difficulty: Literal["beginner", "easy", "normal", "hard"] = "normal"
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
 
 
 class XiangqiPlayResponse(BaseModel):
@@ -1012,6 +1074,44 @@ def xiangqi_position_seed(fen: str) -> int:
     return sum((index + 1) * ord(char) for index, char in enumerate(fen))
 
 
+def weaker_xiangqi_move(
+    board: XiangqiBoard,
+    best: str,
+    mistake_percent: int,
+    *,
+    force_mate: bool = True,
+) -> str:
+    if force_mate:
+        mate = xiangqi_mate_in_one(board)
+        if mate:
+            return mate
+    if mistake_percent <= 0:
+        return best
+    if xiangqi_position_seed(board.fen()) % 100 >= mistake_percent:
+        return best
+
+    candidates = [uci for uci in board.generate_legal_moves() if uci != best]
+    if not candidates:
+        return best
+
+    def weakness_key(uci: str) -> tuple[int, int, str]:
+        parsed = parse_xiangqi_uci(uci)
+        capture_score = 0
+        if parsed is not None:
+            (_start, (tf, tr)) = parsed
+            captured = board.piece_at(tf, tr)
+            if captured:
+                capture_score = XIANGQI_PIECE_VALUE.get(captured.upper(), 0)
+        trial = board.copy()
+        trial.push_uci(uci)
+        gives_check = trial.is_in_check(trial.turn == "w")
+        return (1 if gives_check else 0, capture_score, uci)
+
+    ordered = sorted(candidates, key=weakness_key)
+    pool = ordered[: max(1, len(ordered) // 3)]
+    return pool[xiangqi_position_seed(board.fen()) % len(pool)]
+
+
 @app.post("/api/v1/xiangqi/play", response_model=XiangqiPlayResponse)
 def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
     fen = (payload.fen or "").strip() or XIANGQI_START_FEN
@@ -1056,10 +1156,10 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
                 settings["pick_index"] + (xiangqi_position_seed(board.fen()) % 2),
             )
         try:
-            mate_uci = xiangqi_mate_in_one(board)
-            if mate_uci:
-                engine_uci = mate_uci
-            else:
+            engine_uci = ""
+            if force_engine_mate(payload.difficulty):
+                engine_uci = xiangqi_mate_in_one(board)
+            if not engine_uci:
                 engine_uci = get_pikafish_engine().best_move(
                     board.fen(),
                     movetime_ms=settings["movetime_ms"],
@@ -1074,7 +1174,12 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
                 user_san=user_san,
                 user_uci=user_uci,
             )
-        engine_uci = engine_uci.strip().lower()
+        engine_uci = weaker_xiangqi_move(
+            board,
+            engine_uci.strip().lower(),
+            settings["mistake_percent"],
+            force_mate=force_engine_mate(payload.difficulty),
+        )
         if not board.is_legal(engine_uci):
             return xiangqi_play_state(
                 board,

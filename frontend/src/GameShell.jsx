@@ -91,7 +91,7 @@ export function DifficultySelect({ value, onChange, disabled }) {
         <option value="beginner">入门（很弱）</option>
         <option value="easy">简单</option>
         <option value="normal">普通</option>
-        <option value="hard">困难（强）</option>
+        <option value="hard">困难</option>
       </select>
     </label>
   );
