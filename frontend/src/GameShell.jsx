@@ -1,4 +1,4 @@
-export function GameHeader({ onBack, slogan }) {
+export function GameHeader({ onBack, slogan, backLabel = "选择棋种" }) {
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 sm:px-4 sm:py-3">
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -10,7 +10,7 @@ export function GameHeader({ onBack, slogan }) {
           onClick={onBack}
           className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
         >
-          选择棋种
+          {backLabel}
         </button>
       </div>
       {slogan ? (

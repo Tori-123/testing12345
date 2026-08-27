@@ -330,7 +330,13 @@ export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode })
     return (
       <GomokuOnline
         initialCode={roomCode}
-        onBack={onBack}
+        onBack={() => {
+          setLobbyError("");
+          setRoomCode("");
+          setJoinDraft("");
+          setMode("");
+          onRoomCode?.("");
+        }}
         onRoomCode={(code) => {
           onRoomCode?.(code);
         }}

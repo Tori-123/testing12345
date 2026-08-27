@@ -478,11 +478,13 @@ export default function App() {
   }
 
   function writeGomokuInvite(code) {
+    const next = (code || "").toUpperCase();
     const url = new URL(window.location.href);
     url.searchParams.set("game", "gomoku");
-    url.searchParams.set("r", code);
+    if (next) url.searchParams.set("r", next);
+    else url.searchParams.delete("r");
     window.history.replaceState({}, "", url);
-    setGomokuRoom(code);
+    setGomokuRoom(next);
   }
 
   if (selectedGame === "chess") {

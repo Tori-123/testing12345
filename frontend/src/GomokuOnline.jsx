@@ -264,6 +264,7 @@ export default function GomokuOnline({ initialCode, onBack, onRoomCode }) {
       header={
         <GameHeader
           onBack={onBack}
+          backLabel="退出房间"
           slogan={
             seat === "white"
               ? "你执白。和对方轮流落子。"
