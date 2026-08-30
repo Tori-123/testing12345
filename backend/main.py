@@ -21,6 +21,16 @@ except ImportError:
     from gomoku_rooms import router as gomoku_room_router
 
 try:
+    from .chess_rooms import router as chess_room_router
+except ImportError:
+    from chess_rooms import router as chess_room_router
+
+try:
+    from .xiangqi_rooms import router as xiangqi_room_router
+except ImportError:
+    from xiangqi_rooms import router as xiangqi_room_router
+
+try:
     from .rapfi import get_rapfi_engine
 except ImportError:
     from rapfi import get_rapfi_engine
@@ -140,6 +150,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(gomoku_room_router)
+app.include_router(chess_room_router)
+app.include_router(xiangqi_room_router)
 
 
 class AnalyzeRequest(BaseModel):
@@ -514,6 +526,7 @@ class PlayRequest(BaseModel):
     fen: str = ""
     uci: str = ""
     difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
+    side: Literal["white", "black"] = "white"
 
 
 class PlayResponse(BaseModel):
@@ -745,9 +758,10 @@ def play(payload: PlayRequest) -> PlayResponse:
     to_square = ""
     eval_score = 0.0
 
+    user_turn = chess.WHITE if payload.side != "black" else chess.BLACK
     uci = (payload.uci or "").strip()
     if uci:
-        if board.turn != chess.WHITE:
+        if board.turn != user_turn:
             return play_state(board, error="还没轮到你走。")
         move = parse_user_uci(board, uci)
         if move is None:
@@ -766,7 +780,7 @@ def play(payload: PlayRequest) -> PlayResponse:
                 to_square=to_square,
             )
 
-    if board.turn == chess.BLACK and not board.is_game_over(claim_draw=True):
+    if board.turn != user_turn and not board.is_game_over(claim_draw=True):
         try:
             engine_san, engine_uci, from_square, to_square, eval_score = apply_engine_move(
                 board,
@@ -801,6 +815,7 @@ class GomokuMove(BaseModel):
 class GomokuPlayRequest(BaseModel):
     moves: list[GomokuMove] = Field(default_factory=list, max_length=225)
     difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
+    side: Literal["black", "white"] = "black"
 
 
 class GomokuPlayResponse(BaseModel):
@@ -863,16 +878,17 @@ def weakened_gomoku_move(
         for col in range(GOMOKU_BOARD_SIZE)
         if (row, col) not in occupied
     ]
+    engine_player = "white" if moves and moves[-1].player == "black" else "black"
     immediate_wins = [
         point
         for point in legal_points
         if gomoku_winner(
             [
                 *moves,
-                GomokuMove(row=point[0], col=point[1], player="white"),
+                GomokuMove(row=point[0], col=point[1], player=engine_player),
             ]
         )
-        == "white"
+        == engine_player
     ]
     if force_mate and immediate_wins:
         return sorted(immediate_wins)[0]
@@ -959,10 +975,11 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
     if gomoku_winner(moves) or len(moves) == GOMOKU_BOARD_SIZE**2:
         return gomoku_response(moves)
 
-    if not moves or len(moves) % 2 == 0:
+    turn = "black" if len(moves) % 2 == 0 else "white"
+    if turn == payload.side:
         return gomoku_response(moves)
 
-    user_move = moves[-1]
+    user_move = moves[-1] if moves else None
     try:
         row, col = get_rapfi_engine().best_move(
             [
@@ -1001,7 +1018,7 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
             force_mate=force_engine_mate(payload.difficulty),
         )
 
-    engine_move = GomokuMove(row=row, col=col, player="white")
+    engine_move = GomokuMove(row=row, col=col, player=turn)
     moves.append(engine_move)
     return gomoku_response(
         moves,
@@ -1014,6 +1031,7 @@ class XiangqiPlayRequest(BaseModel):
     fen: str = ""
     uci: str = ""
     difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
+    side: Literal["red", "black"] = "red"
 
 
 class XiangqiPlayResponse(BaseModel):
@@ -1065,7 +1083,7 @@ def xiangqi_mate_in_one(board: XiangqiBoard) -> str:
     for uci in board.generate_legal_moves():
         trial = board.copy()
         trial.push_uci(uci)
-        if trial.game_over() and trial.result() == "0-1":
+        if trial.game_over() and trial.result() in {"1-0", "0-1"}:
             return uci
     return ""
 
@@ -1127,9 +1145,10 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
     from_square = ""
     to_square = ""
 
+    user_turn = "b" if payload.side == "black" else "w"
     uci = (payload.uci or "").strip().lower()
     if uci:
-        if board.turn != "w":
+        if board.turn != user_turn:
             return xiangqi_play_state(board, error="还没轮到你走。")
         if not board.is_legal(uci):
             return xiangqi_play_state(board, error="这步不合法。")
@@ -1147,7 +1166,7 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
                 to_square=to_square,
             )
 
-    if board.turn == "b" and not board.game_over():
+    if board.turn != user_turn and not board.game_over():
         settings = XIANGQI_DIFFICULTY[payload.difficulty]
         pick_index = settings["pick_index"]
         if payload.difficulty == "beginner":

@@ -97,11 +97,15 @@
 
 ## 5. 五子棋房间（人对人）
 
-无账号。房间存在服务端内存，TTL 约 2 小时。不调用 Rapfi。创建者执黑，加入者执白。
+无账号。房间存在服务端内存，TTL 约 2 小时。不调用 Rapfi。创建者自选执黑或执白，加入者拿剩下的颜色。黑方仍先走。
 
 ### `POST /api/v1/gomoku/rooms`
 
-无请求体。成功时返回房间码、黑方 `token`、空棋盘。
+```json
+{ "seat": "black" }
+```
+
+`seat` 为 `"black"` 或 `"white"`，默认 `"black"`。成功时返回房间码、创建者 `token` 与所选 `seat`。
 
 ### `POST /api/v1/gomoku/rooms/{code}/join`
 
@@ -115,7 +119,7 @@
 
 只读快照。
 
-房间响应第一层字段：`status` `error_message` `code` `seat` `token` `black_ready` `white_ready` `moves` `turn` `game_over` `result`。`moves` 项为 `{ "row", "col", "player" }`，`player` 为 `"black"` 或 `"white"`。
+房间响应第一层字段：`status` `error_message` `code` `seat` `token` `black_ready` `white_ready` `moves` `turn` `game_over` `result` `end_reason` `clock_ms` `clock_limit_ms` `restart_black` `restart_white`。`moves` 项为 `{ "row", "col", "player" }`，`player` 为 `"black"` 或 `"white"`。`end_reason` 为 `""` `"five"` `"draw"` `"resign"` `"timeout"`。双方到齐后每手 `clock_limit_ms`（默认 60000）倒计时，超时判负。`restart_black` / `restart_white` 表示该座位已申请再来一局；两边都为 `true` 时服务端才清空棋盘并重新计时。任意一方落子会清掉未完成的申请。
 
 ### WebSocket `/api/v1/gomoku/rooms/{code}/ws?token=`
 
@@ -128,7 +132,65 @@
 ```
 
 ```json
+{ "type": "resign" }
+```
+
+```json
 { "type": "restart" }
 ```
 
+`restart` 是投票，不是立刻重开。一方发送后快照里对应 `restart_*` 变为 `true`；另一方再发送后才 `reset`。
+
 前端邀请链接用查询串，不引入路由库：`/?game=gomoku&r={code}`。
+
+---
+
+## 6. 国际象棋房间（人对人）
+
+无账号。房间存在服务端内存，TTL 约 2 小时。不调用 chess-api。创建者自选执白或执黑，加入者拿剩下的颜色。白方仍先走。走子用 UCI。升变一律成后。
+
+### `POST /api/v1/chess/rooms`
+
+```json
+{ "seat": "white" }
+```
+
+### `POST /api/v1/chess/rooms/{code}/join`
+
+```json
+{ "token": "" }
+```
+
+房间响应第一层字段：`status` `error_message` `code` `seat` `token` `fen` `turn` `legal_uci` `sans` `from_square` `to_square` `game_over` `result` `end_reason` `clock_ms` `clock_limit_ms` `white_ready` `black_ready` `restart_white` `restart_black`。`result` 为 `"white"` `"black"` `"draw"` 或空。`end_reason` 为 `""` `"mate"` `"draw"` `"resign"` `"timeout"`。再来一局同样要双方 `restart` 投票。
+
+### WebSocket `/api/v1/chess/rooms/{code}/ws?token=`
+
+```json
+{ "type": "move", "uci": "e2e4" }
+```
+
+```json
+{ "type": "resign" }
+```
+
+```json
+{ "type": "restart" }
+```
+
+邀请链接：`/?game=chess&r={code}`。
+
+---
+
+## 7. 中国象棋房间（人对人）
+
+无账号。房间存在服务端内存，TTL 约 2 小时。不调用 Pikafish。创建者自选执红或执黑，加入者拿剩下的颜色。红方仍先走。走子用 UCI（如 `b2e2`）。
+
+### `POST /api/v1/xiangqi/rooms`
+
+```json
+{ "seat": "red" }
+```
+
+房间字段与国际象棋房间相同，另有 `red_ready` `restart_red`。`turn` / `result` 用 `"red"` `"black"`。
+
+邀请链接：`/?game=xiangqi&r={code}`。

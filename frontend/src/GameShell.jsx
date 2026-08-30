@@ -1,17 +1,34 @@
-export function GameHeader({ onBack, slogan, backLabel = "选择棋种" }) {
+export function GameHeader({
+  onBack,
+  onHome,
+  slogan,
+  backLabel = "返回",
+  homeLabel = "回主界面",
+}) {
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 sm:px-4 sm:py-3">
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <span className="text-base font-semibold tracking-tight sm:text-lg">
           PlyHan
         </span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
-        >
-          {backLabel}
-        </button>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+          >
+            {backLabel}
+          </button>
+        ) : null}
+        {onHome ? (
+          <button
+            type="button"
+            onClick={onHome}
+            className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+          >
+            {homeLabel}
+          </button>
+        ) : null}
       </div>
       {slogan ? (
         <p className="hidden min-w-0 text-right text-xs leading-relaxed text-neutral-500 sm:block sm:max-w-[58%] sm:text-sm">
@@ -37,7 +54,18 @@ export function GameScreen({ header, board, panel, modal }) {
   );
 }
 
-export function GameOverDialog({ title, message, onRestart, onDismiss }) {
+export function GameOverDialog({
+  title,
+  message,
+  onRestart,
+  onDismiss,
+  onBack,
+  onHome,
+  restartLabel = "再来一局",
+  restartDisabled = false,
+  backLabel = "返回",
+  homeLabel = "回主界面",
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
       <div
@@ -56,9 +84,10 @@ export function GameOverDialog({ title, message, onRestart, onDismiss }) {
         <button
           type="button"
           onClick={onRestart}
-          className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
+          disabled={restartDisabled}
+          className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
         >
-          再来一局
+          {restartLabel}
         </button>
         <button
           type="button"
@@ -67,6 +96,24 @@ export function GameOverDialog({ title, message, onRestart, onDismiss }) {
         >
           留下看棋盘
         </button>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
+          >
+            {backLabel}
+          </button>
+        ) : null}
+        {onHome ? (
+          <button
+            type="button"
+            onClick={onHome}
+            className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
+          >
+            {homeLabel}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -75,6 +122,34 @@ export function GameOverDialog({ title, message, onRestart, onDismiss }) {
 export function GameControls({ children }) {
   return (
     <div className="mt-4 flex flex-wrap gap-2">{children}</div>
+  );
+}
+
+export function SideSelect({ value, onChange, disabled, options }) {
+  return (
+    <div className="mt-4">
+      <p className="text-sm text-neutral-700">执棋</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((option) => {
+          const active = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(option.id)}
+              className={`rounded-none border px-3 py-1.5 text-sm disabled:opacity-50 ${
+                active
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "border-neutral-300 bg-white text-neutral-900"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

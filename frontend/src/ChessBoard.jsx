@@ -187,7 +187,7 @@ export function PieceGlyph({ code, flying = false }) {
   );
 }
 
-function FlyingPiece({ from, to, code, duration }) {
+function FlyingPiece({ from, to, code, duration, flipped = false }) {
   const [pos, setPos] = useState(squareBox(from));
   const [moving, setMoving] = useState(false);
 
@@ -214,7 +214,12 @@ function FlyingPiece({ from, to, code, duration }) {
           : "none",
       }}
     >
-      <PieceGlyph code={code} flying />
+      <span
+        className="flex h-full w-full items-center justify-center"
+        style={flipped ? { transform: "rotate(180deg)" } : undefined}
+      >
+        <PieceGlyph code={code} flying />
+      </span>
     </div>
   );
 }
@@ -228,6 +233,7 @@ export default function ChessBoard({
   flight = null,
   onSquareClick,
   disabled = false,
+  flipped = false,
 }) {
   const squares = squaresFromFen(fen);
   const clickable = typeof onSquareClick === "function" && !disabled;
@@ -237,6 +243,7 @@ export default function ChessBoard({
       <div
         className="board-fit-square grid grid-cols-8 grid-rows-8"
         aria-label="棋盘"
+        style={flipped ? { transform: "rotate(180deg)" } : undefined}
       >
       {squares.map((sq) => {
         const lastMove = sq.name === from_square || sq.name === to_square;
@@ -256,7 +263,14 @@ export default function ChessBoard({
               isTarget ? "bg-red-600/35" : ""
             } ${clickable ? "cursor-pointer" : "cursor-default"}`}
           >
-            {hiddenByFlight ? null : <PieceGlyph code={sq.code} />}
+            {hiddenByFlight ? null : (
+              <span
+                className="flex h-full w-full items-center justify-center"
+                style={flipped ? { transform: "rotate(180deg)" } : undefined}
+              >
+                <PieceGlyph code={sq.code} />
+              </span>
+            )}
             {isTarget && !sq.code ? (
               <span className="absolute h-[22%] w-[22%] max-h-3 max-w-3 min-h-[0.4rem] min-w-[0.4rem] rounded-full bg-red-600" />
             ) : null}
@@ -270,6 +284,7 @@ export default function ChessBoard({
           to={flight.to}
           code={flight.code}
           duration={flight.duration}
+          flipped={flipped}
         />
       ) : null}
       </div>

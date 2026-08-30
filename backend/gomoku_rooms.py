@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 BOARD_SIZE = 15
 ROOM_TTL_SECONDS = 2 * 60 * 60
+CLOCK_LIMIT_MS = 60 * 1000
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 4
 
@@ -18,6 +19,10 @@ class GomokuRoomMove(BaseModel):
     row: int = Field(ge=0, lt=BOARD_SIZE)
     col: int = Field(ge=0, lt=BOARD_SIZE)
     player: Literal["black", "white"]
+
+
+class CreateRoomRequest(BaseModel):
+    seat: Literal["black", "white"] = "black"
 
 
 class JoinRoomRequest(BaseModel):
@@ -41,6 +46,11 @@ class RoomResponse(BaseModel):
     turn: Literal["black", "white", ""] = ""
     game_over: bool = False
     result: Literal["black", "white", "draw", ""] = ""
+    end_reason: Literal["", "five", "draw", "resign", "timeout"] = ""
+    clock_ms: int = CLOCK_LIMIT_MS
+    clock_limit_ms: int = CLOCK_LIMIT_MS
+    restart_black: bool = False
+    restart_white: bool = False
 
 
 def _winner(moves: list[dict]) -> str:
@@ -65,13 +75,23 @@ def _new_code() -> str:
 
 
 class Room:
-    def __init__(self, code: str, black_token: str):
+    def __init__(self, code: str, creator_seat: str, token: str):
         self.code = code
-        self.black_token = black_token
-        self.white_token: str | None = None
+        self.black_token = token if creator_seat == "black" else None
+        self.white_token = token if creator_seat == "white" else None
         self.moves: list[dict] = []
         self.last_active = time.monotonic()
         self.sockets: set[WebSocket] = set()
+        self.ended_by: str = ""
+        self.winner: str = ""
+        self.turn_started = time.monotonic()
+        self.clock_gen = 0
+        self.clock_task: asyncio.Task | None = None
+        self.restart_black = False
+        self.restart_white = False
+
+    def both_ready(self) -> bool:
+        return bool(self.black_token and self.white_token)
 
     def touch(self) -> None:
         self.last_active = time.monotonic()
@@ -83,23 +103,56 @@ class Room:
             return "white"
         return ""
 
+    def reset_board(self) -> None:
+        self.moves = []
+        self.ended_by = ""
+        self.winner = ""
+        self.turn_started = time.monotonic()
+        self.restart_black = False
+        self.restart_white = False
+
+    def clock_ms(self) -> int:
+        if self.ended_by or not self.both_ready():
+            return CLOCK_LIMIT_MS
+        elapsed = int((time.monotonic() - self.turn_started) * 1000)
+        return max(0, CLOCK_LIMIT_MS - elapsed)
+
     def snapshot(self) -> dict:
         winner = _winner(self.moves)
         full = len(self.moves) == BOARD_SIZE * BOARD_SIZE
-        game_over = bool(winner) or full
-        result = winner or ("draw" if full else "")
+        if self.ended_by:
+            game_over = True
+            result = self.winner
+            end_reason = self.ended_by
+        elif winner:
+            game_over = True
+            result = winner
+            end_reason = "five"
+        elif full:
+            game_over = True
+            result = "draw"
+            end_reason = "draw"
+        else:
+            game_over = False
+            result = ""
+            end_reason = ""
         turn = "" if game_over else ("black" if len(self.moves) % 2 == 0 else "white")
         return {
             "type": "state",
             "status": "success",
             "error_message": "",
             "code": self.code,
-            "black_ready": True,
+            "black_ready": bool(self.black_token),
             "white_ready": bool(self.white_token),
             "moves": list(self.moves),
             "turn": turn,
             "game_over": game_over,
             "result": result,
+            "end_reason": end_reason,
+            "clock_ms": 0 if game_over else self.clock_ms(),
+            "clock_limit_ms": CLOCK_LIMIT_MS,
+            "restart_black": self.restart_black,
+            "restart_white": self.restart_white,
         }
 
 
@@ -118,16 +171,17 @@ class RoomStore:
         for code in expired:
             self._rooms.pop(code, None)
 
-    async def create(self) -> tuple[Room, str]:
+    async def create(self, seat: str = "black") -> tuple[Room, str, str]:
+        creator_seat = seat if seat in {"black", "white"} else "black"
         async with self._lock:
             self._purge()
             for _ in range(20):
                 code = _new_code()
                 if code not in self._rooms:
                     token = secrets.token_urlsafe(16)
-                    room = Room(code, token)
+                    room = Room(code, creator_seat, token)
                     self._rooms[code] = room
-                    return room, token
+                    return room, token, creator_seat
             raise RuntimeError("无法分配房间码")
 
     async def get(self, code: str) -> Room | None:
@@ -145,6 +199,10 @@ class RoomStore:
             existing = room.seat_for(token)
             if existing:
                 return room, existing, token
+            if room.black_token is None:
+                black_token = secrets.token_urlsafe(16)
+                room.black_token = black_token
+                return room, "black", black_token
             if room.white_token is None:
                 white_token = secrets.token_urlsafe(16)
                 room.white_token = white_token
@@ -177,7 +235,44 @@ def _response(
         turn=data["turn"],
         game_over=data["game_over"],
         result=data["result"],
+        end_reason=data["end_reason"],
+        clock_ms=data["clock_ms"],
+        clock_limit_ms=data["clock_limit_ms"],
+        restart_black=data["restart_black"],
+        restart_white=data["restart_white"],
     )
+
+
+def _cancel_clock(room: Room) -> None:
+    task = room.clock_task
+    room.clock_task = None
+    if task and not task.done():
+        task.cancel()
+
+
+async def _arm_clock(room: Room) -> None:
+    _cancel_clock(room)
+    if room.ended_by or not room.both_ready():
+        return
+    if _winner(room.moves) or len(room.moves) == BOARD_SIZE * BOARD_SIZE:
+        return
+    room.turn_started = time.monotonic()
+    room.clock_gen += 1
+    gen = room.clock_gen
+
+    async def _timeout() -> None:
+        try:
+            await asyncio.sleep(CLOCK_LIMIT_MS / 1000)
+        except asyncio.CancelledError:
+            return
+        async with store._lock:
+            if room.clock_gen != gen or room.ended_by or not room.both_ready():
+                return
+            room.ended_by = "timeout"
+            room.winner = "white" if len(room.moves) % 2 == 0 else "black"
+        await _broadcast(room)
+
+    room.clock_task = asyncio.create_task(_timeout())
 
 
 async def _broadcast(room: Room, extra: dict | None = None) -> None:
@@ -193,12 +288,13 @@ async def _broadcast(room: Room, extra: dict | None = None) -> None:
 
 
 @router.post("/api/v1/gomoku/rooms", response_model=RoomResponse)
-async def create_room() -> RoomResponse:
+async def create_room(payload: CreateRoomRequest = CreateRoomRequest()) -> RoomResponse:
+    seat = payload.seat
     try:
-        room, token = await store.create()
+        room, token, creator_seat = await store.create(seat)
     except RuntimeError as exc:
         return RoomResponse(status="error", error_message=str(exc))
-    return _response(room, seat="black", token=token)
+    return _response(room, seat=creator_seat, token=token)
 
 
 @router.get("/api/v1/gomoku/rooms/{code}", response_model=RoomResponse)
@@ -217,6 +313,14 @@ async def join_room(code: str, payload: JoinRoomRequest) -> RoomResponse:
         return _response(None, error="房间不存在或已过期。")
     if not seat:
         return _response(room, error="房间已满。")
+    just_filled = (
+        room.both_ready()
+        and not room.ended_by
+        and not room.moves
+        and (room.clock_task is None or room.clock_task.done())
+    )
+    if just_filled:
+        await _arm_clock(room)
     await _broadcast(room)
     return _response(room, seat=seat, token=token)
 
@@ -255,10 +359,28 @@ async def room_socket(websocket: WebSocket, code: str, token: str = "") -> None:
                         {"type": "error", "status": "error", "error_message": error}
                     )
                     continue
+                await _arm_clock(room)
+                await _broadcast(room)
+            elif kind == "resign":
+                async with store._lock:
+                    error = _apply_resign(room, seat)
+                if error:
+                    await websocket.send_json(
+                        {"type": "error", "status": "error", "error_message": error}
+                    )
+                    continue
+                _cancel_clock(room)
                 await _broadcast(room)
             elif kind == "restart":
                 async with store._lock:
-                    room.moves = []
+                    error, started = _apply_restart(room, seat)
+                if error:
+                    await websocket.send_json(
+                        {"type": "error", "status": "error", "error_message": error}
+                    )
+                    continue
+                if started:
+                    await _arm_clock(room)
                 await _broadcast(room)
             else:
                 await websocket.send_json(
@@ -275,7 +397,7 @@ async def room_socket(websocket: WebSocket, code: str, token: str = "") -> None:
 
 
 def _apply_move(room: Room, seat: str, message: dict) -> str:
-    if not room.white_token:
+    if not room.both_ready():
         return "对方还没加入。"
     state = room.snapshot()
     if state["game_over"]:
@@ -292,4 +414,32 @@ def _apply_move(room: Room, seat: str, message: dict) -> str:
     if any(move["row"] == row and move["col"] == col for move in room.moves):
         return "这里已经有子了。"
     room.moves.append({"row": row, "col": col, "player": seat})
+    room.restart_black = False
+    room.restart_white = False
+    return ""
+
+
+def _apply_restart(room: Room, seat: str) -> tuple[str, bool]:
+    if not room.both_ready():
+        return "对方还没加入。", False
+    if seat == "black":
+        room.restart_black = True
+    elif seat == "white":
+        room.restart_white = True
+    else:
+        return "无法认座。", False
+    if room.restart_black and room.restart_white:
+        room.reset_board()
+        return "", True
+    return "", False
+
+
+def _apply_resign(room: Room, seat: str) -> str:
+    if not room.both_ready():
+        return "对方还没加入。"
+    state = room.snapshot()
+    if state["game_over"]:
+        return "对局已经结束。"
+    room.ended_by = "resign"
+    room.winner = "white" if seat == "black" else "black"
     return ""

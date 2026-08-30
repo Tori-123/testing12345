@@ -3,6 +3,8 @@
 电脑重启、关掉终端、或重新打开项目之后，**先做完这一页，再打开网页下棋**。  
 Rapfi / Pikafish 不进 git。没装引擎时，中国象棋会报「未安装 Pikafish」，五子棋人机同样会失败。
 
+云主机 http://47.98.150.81 上的引擎已经装进磁盘，和 `plyhan` 服务一起常驻。日常测试直接打开这个地址即可，**不用每次在本机跑 setup 脚本**。只有本机 `localhost:5173` 开发时才需要下面的步骤。
+
 以下命令都在项目根目录执行：
 
 `testing12345/`
@@ -107,5 +109,5 @@ backend/.venv/bin/python backend/setup_rapfi.py
 
 - 先开前端、后开后端（棋盘能点，引擎一定失败）
 - 用 `python backend/setup_pikafish.py` 而不是虚拟环境里的 Python
-- 后端加 `--workers` 大于 1（五子棋联机房间会对不上）
+- 后端加 `--workers` 大于 1（联机房间会对不上）
 - 只刷新浏览器，不重启 uvicorn（刚装完引擎时）

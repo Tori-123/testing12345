@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { copyTextToClipboard } from "./clipboard.js";
-import GomokuBoard from "./GomokuBoard.jsx";
 import {
   GameControls,
   GameHeader,
@@ -11,29 +10,6 @@ import {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-const SEAT_KEY = "plyhan-gomoku-seat";
-
-function coordinate(move) {
-  if (!move) return "";
-  return `${String.fromCharCode(65 + move.col)}${move.row + 1}`;
-}
-
-function resultCopy(result, seat, endReason) {
-  if (endReason === "resign") {
-    if (result === seat) return "对方认输。你赢了。";
-    return "你认输了。";
-  }
-  if (endReason === "timeout") {
-    if (result === seat) return "对方超时。你赢了。";
-    return "你超时了。";
-  }
-  if (result === "draw") return "棋盘已满，和棋。";
-  if (result === "black" || result === "white") {
-    if (result === seat) return "五子连珠。你赢了。";
-    return "五子连珠。对方赢了。";
-  }
-  return "对局结束。";
-}
 
 function formatClock(ms) {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -42,9 +18,9 @@ function formatClock(ms) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-function loadSeat(code) {
+function loadSeat(storageKey, code) {
   try {
-    const raw = JSON.parse(sessionStorage.getItem(SEAT_KEY) || "null");
+    const raw = JSON.parse(sessionStorage.getItem(storageKey) || "null");
     if (raw && raw.code === code && raw.token && raw.seat) return raw;
   } catch {
     /* ignore */
@@ -52,21 +28,21 @@ function loadSeat(code) {
   return null;
 }
 
-function saveSeat(payload) {
-  sessionStorage.setItem(SEAT_KEY, JSON.stringify(payload));
+function saveSeat(storageKey, payload) {
+  sessionStorage.setItem(storageKey, JSON.stringify(payload));
 }
 
-function roomShareUrl(code) {
+function roomShareUrl(game, code) {
   const url = new URL(window.location.href);
-  url.searchParams.set("game", "gomoku");
+  url.searchParams.set("game", game);
   url.searchParams.set("r", code);
   return url.toString();
 }
 
-function roomWsUrl(code, token) {
+function roomWsUrl(game, code, token) {
   const httpBase = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
   const ws = new URL(
-    `api/v1/gomoku/rooms/${encodeURIComponent(code)}/ws`,
+    `api/v1/${game}/rooms/${encodeURIComponent(code)}/ws`,
     httpBase,
   );
   ws.protocol = ws.protocol === "https:" ? "wss:" : "ws:";
@@ -86,47 +62,81 @@ async function postJson(path, body) {
   return await response.json();
 }
 
-export default function GomokuOnline({
-  initialCode,
-  createSeat = "black",
+export default function BoardOnline({
+  game,
+  initialCode = "",
+  createSeat,
+  firstSeat,
+  secondSeat,
+  startFen,
+  storageKey,
+  historyEmpty = "还没有走子。",
+  pairHistory,
+  resultCopy,
+  sloganFor,
+  metaFor,
   onBack,
   onHome,
   onRoomCode,
+  renderBoard,
 }) {
-  const [code, setCode] = useState((initialCode || "").toUpperCase());
+  const [code, setCode] = useState("");
   const [seat, setSeat] = useState("");
   const [token, setToken] = useState("");
-  const [moves, setMoves] = useState([]);
-  const [turn, setTurn] = useState("black");
-  const [blackReady, setBlackReady] = useState(false);
-  const [whiteReady, setWhiteReady] = useState(false);
+  const [fen, setFen] = useState(startFen);
+  const [legalUci, setLegalUci] = useState([]);
+  const [sans, setSans] = useState([]);
+  const [fromSquare, setFromSquare] = useState("");
+  const [toSquare, setToSquare] = useState("");
+  const [turn, setTurn] = useState(firstSeat);
+  const [firstReady, setFirstReady] = useState(false);
+  const [secondReady, setSecondReady] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [result, setResult] = useState("");
+  const [endReason, setEndReason] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [overOpen, setOverOpen] = useState(false);
   const [copied, setCopied] = useState("");
   const [connected, setConnected] = useState(false);
-  const [endReason, setEndReason] = useState("");
   const [clockLimitMs, setClockLimitMs] = useState(60_000);
   const [displayClockMs, setDisplayClockMs] = useState(60_000);
-  const [restartBlack, setRestartBlack] = useState(false);
-  const [restartWhite, setRestartWhite] = useState(false);
+  const [restartFirst, setRestartFirst] = useState(false);
+  const [restartSecond, setRestartSecond] = useState(false);
   const socketRef = useRef(null);
   const seatRef = useRef("");
   const pendingRef = useRef(null);
   const applyStateRef = useRef(null);
+  const restoreRef = useRef(null);
   const clockSyncRef = useRef({ remain: 60_000, at: 0, running: false });
 
+  function readyFrom(data, which) {
+    if (which === firstSeat) {
+      if (firstSeat === "white") return Boolean(data.white_ready);
+      if (firstSeat === "red") return Boolean(data.red_ready);
+      return Boolean(data.black_ready);
+    }
+    if (secondSeat === "white") return Boolean(data.white_ready);
+    if (secondSeat === "red") return Boolean(data.red_ready);
+    return Boolean(data.black_ready);
+  }
+
+  function restartFrom(data, which) {
+    if (which === "white") return Boolean(data.restart_white);
+    if (which === "red") return Boolean(data.restart_red);
+    return Boolean(data.restart_black);
+  }
+
   function rollbackPending() {
-    const pending = pendingRef.current;
-    if (!pending) return;
+    const restore = restoreRef.current;
     pendingRef.current = null;
-    setMoves((prev) =>
-      prev.filter(
-        (move) => !(move.row === pending.row && move.col === pending.col),
-      ),
-    );
-    setTurn(seatRef.current);
+    restoreRef.current = null;
+    if (!restore) return;
+    setFen(restore.fen);
+    setLegalUci(restore.legalUci);
+    setFromSquare(restore.fromSquare);
+    setToSquare(restore.toSquare);
+    setTurn(restore.turn);
+    setSans(restore.sans);
   }
 
   function applyState(data) {
@@ -135,31 +145,31 @@ export default function GomokuOnline({
       setErrorMessage(data?.error_message || "房间状态异常。");
       return;
     }
-    if (Array.isArray(data.moves) && pendingRef.current) {
+    if (pendingRef.current && Array.isArray(data.sans)) {
       const pending = pendingRef.current;
-      const confirmed = data.moves.some(
-        (move) =>
-          move.row === pending.row &&
-          move.col === pending.col &&
-          move.player === pending.player,
-      );
+      const confirmed = data.sans.length >= pending.afterCount;
       if (!confirmed) {
         if (data.code) setCode(data.code);
-        setBlackReady(Boolean(data.black_ready));
-        setWhiteReady(Boolean(data.white_ready));
-        setRestartBlack(Boolean(data.restart_black));
-        setRestartWhite(Boolean(data.restart_white));
+        setFirstReady(readyFrom(data, firstSeat));
+        setSecondReady(readyFrom(data, secondSeat));
+        setRestartFirst(restartFrom(data, firstSeat));
+        setRestartSecond(restartFrom(data, secondSeat));
         return;
       }
       pendingRef.current = null;
+      restoreRef.current = null;
     }
     if (data.code) setCode(data.code);
-    if (Array.isArray(data.moves)) setMoves(data.moves);
+    if (data.fen) setFen(data.fen);
+    if (Array.isArray(data.legal_uci)) setLegalUci(data.legal_uci);
+    if (Array.isArray(data.sans)) setSans(data.sans);
+    setFromSquare(data.from_square || "");
+    setToSquare(data.to_square || "");
     if (data.turn !== undefined) setTurn(data.turn || "");
-    setBlackReady(Boolean(data.black_ready));
-    setWhiteReady(Boolean(data.white_ready));
-    setRestartBlack(Boolean(data.restart_black));
-    setRestartWhite(Boolean(data.restart_white));
+    setFirstReady(readyFrom(data, firstSeat));
+    setSecondReady(readyFrom(data, secondSeat));
+    setRestartFirst(restartFrom(data, firstSeat));
+    setRestartSecond(restartFrom(data, secondSeat));
     setGameOver(Boolean(data.game_over));
     setResult(data.result || "");
     setEndReason(data.end_reason || "");
@@ -172,8 +182,8 @@ export default function GomokuOnline({
         remain: data.clock_ms,
         at: performance.now(),
         running:
-          Boolean(data.black_ready) &&
-          Boolean(data.white_ready) &&
+          readyFrom(data, firstSeat) &&
+          readyFrom(data, secondSeat) &&
           !data.game_over,
       };
     }
@@ -197,19 +207,20 @@ export default function GomokuOnline({
 
   useEffect(() => {
     let cancelled = false;
-    const saved = loadSeat((initialCode || "").toUpperCase());
+    const invite = (initialCode || "").toUpperCase();
+    const saved = loadSeat(storageKey, invite);
 
     (async () => {
       try {
         let data;
-        if (initialCode) {
+        if (invite) {
           data = await postJson(
-            `/api/v1/gomoku/rooms/${encodeURIComponent(initialCode)}/join`,
+            `/api/v1/${game}/rooms/${encodeURIComponent(invite)}/join`,
             { token: saved?.token || "" },
           );
         } else {
-          data = await postJson("/api/v1/gomoku/rooms", {
-            seat: createSeat === "white" ? "white" : "black",
+          data = await postJson(`/api/v1/${game}/rooms`, {
+            seat: createSeat || firstSeat,
           });
         }
         if (cancelled) return;
@@ -221,11 +232,15 @@ export default function GomokuOnline({
         setSeat(data.seat);
         seatRef.current = data.seat;
         setCode(data.code);
-        saveSeat({ code: data.code, token: data.token, seat: data.seat });
+        saveSeat(storageKey, {
+          code: data.code,
+          token: data.token,
+          seat: data.seat,
+        });
         onRoomCode?.(data.code);
         applyStateRef.current?.(data);
 
-        const socket = new WebSocket(roomWsUrl(data.code, data.token));
+        const socket = new WebSocket(roomWsUrl(game, data.code, data.token));
         socketRef.current = socket;
         socket.onopen = () => {
           if (!cancelled) setConnected(true);
@@ -255,13 +270,17 @@ export default function GomokuOnline({
     };
     // Enter the room once per invite/create; parent callback is not a dep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCode]);
+  }, [game, initialCode]);
 
-  const bothReady = blackReady && whiteReady;
+  const bothReady = firstReady && secondReady;
   const myTurn = bothReady && !gameOver && turn === seat;
-  const myRestart = seat === "white" ? restartWhite : restartBlack;
-  const oppRestart = seat === "white" ? restartBlack : restartWhite;
-  const shareUrl = code ? roomShareUrl(code) : "";
+  const myRestart = seat === secondSeat ? restartSecond : restartFirst;
+  const oppRestart = seat === secondSeat ? restartFirst : restartSecond;
+  const shareUrl = code ? roomShareUrl(game, code) : "";
+  const history = useMemo(
+    () => (pairHistory ? pairHistory(sans) : []),
+    [pairHistory, sans],
+  );
 
   function rematchLabel() {
     if (myRestart && !oppRestart) return "已申请，等待对方";
@@ -275,18 +294,6 @@ export default function GomokuOnline({
     return "";
   }
 
-  const history = useMemo(() => {
-    const rows = [];
-    for (let index = 0; index < moves.length; index += 2) {
-      rows.push({
-        number: index / 2 + 1,
-        black: coordinate(moves[index]),
-        white: coordinate(moves[index + 1]),
-      });
-    }
-    return rows;
-  }, [moves]);
-
   function send(payload) {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -296,13 +303,22 @@ export default function GomokuOnline({
     socket.send(JSON.stringify(payload));
   }
 
-  function handlePointClick(row, col) {
+  function sendMove(uci, nextFen) {
     if (!myTurn || pendingRef.current) return;
-    if (moves.some((move) => move.row === row && move.col === col)) return;
-    const move = { row, col, player: seat };
-    pendingRef.current = move;
-    setMoves((prev) => [...prev, move]);
-    setTurn(seat === "black" ? "white" : "black");
+    restoreRef.current = {
+      fen,
+      legalUci,
+      fromSquare,
+      toSquare,
+      turn,
+      sans,
+    };
+    pendingRef.current = { uci, afterCount: sans.length + 1 };
+    setFen(nextFen);
+    setLegalUci([]);
+    setFromSquare(uci.slice(0, 2));
+    setToSquare(uci.slice(2, 4));
+    setTurn(seat === firstSeat ? secondSeat : firstSeat);
     clockSyncRef.current = {
       remain: clockLimitMs,
       at: performance.now(),
@@ -310,14 +326,15 @@ export default function GomokuOnline({
     };
     setDisplayClockMs(clockLimitMs);
     setErrorMessage("");
-    send({ type: "move", row, col });
+    send({ type: "move", uci });
   }
 
   function handleRestart() {
     if (myRestart) return;
     pendingRef.current = null;
-    if (seat === "white") setRestartWhite(true);
-    else setRestartBlack(true);
+    restoreRef.current = null;
+    if (seat === secondSeat) setRestartSecond(true);
+    else setRestartFirst(true);
     send({ type: "restart" });
   }
 
@@ -359,30 +376,23 @@ export default function GomokuOnline({
           onBack={onBack}
           onHome={onHome}
           backLabel="返回"
-          slogan={
-            seat === "white"
-              ? "你执白。把链接发给对方，对方执黑先走。"
-              : "你执黑。把链接发给对方，对方执白。"
-          }
+          slogan={sloganFor(seat, firstSeat)}
         />
       }
-      board={
-        <GomokuBoard
-          moves={moves}
-          disabled={!myTurn}
-          onPointClick={handlePointClick}
-          animateLast={Boolean(
-            moves.length && moves[moves.length - 1].player !== seat,
-          )}
-        />
-      }
+      board={renderBoard({
+        fen,
+        legalUci,
+        fromSquare,
+        toSquare,
+        myTurn,
+        seat,
+        onMove: sendMove,
+      })}
       panel={
         <>
           <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
           <div className="mt-3 text-sm text-neutral-500">
-            15×15 自由规则 · 你执{seat === "white" ? "白" : "黑"}
-            {bothReady ? " · 对方已加入" : " · 等待对方"}
-            {bothReady ? ` · 每手 ${Math.round(clockLimitMs / 1000)} 秒` : ""}
+            {metaFor(seat, bothReady, clockLimitMs)}
           </div>
           {bothReady ? (
             <div className="mt-3 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
@@ -450,12 +460,12 @@ export default function GomokuOnline({
               {rematchLabel()}
             </button>
           </GameControls>
-          <MoveHistory title="着法" empty="还没有落子。">
+          <MoveHistory title="着法" empty={historyEmpty}>
             {history.length === 0 ? null : (
               <ol className="mt-2 space-y-1 font-mono text-sm">
                 {history.map((row) => (
-                  <li key={row.number}>
-                    {row.number}. {row.black} {row.white}
+                  <li key={row.n}>
+                    {row.n}. {row.a} {row.b}
                   </li>
                 ))}
               </ol>

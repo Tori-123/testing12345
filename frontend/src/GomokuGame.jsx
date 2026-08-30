@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GomokuBoard from "./GomokuBoard.jsx";
 import GomokuOnline from "./GomokuOnline.jsx";
+import GameLobby, { useLobbyMode } from "./GameLobby.jsx";
 import {
   DifficultySelect,
   GameControls,
@@ -8,6 +9,7 @@ import {
   GameOverDialog,
   GameScreen,
   MoveHistory,
+  SideSelect,
 } from "./GameShell.jsx";
 
 const API_BASE_URL =
@@ -25,21 +27,23 @@ function coordinate(move) {
   return `${String.fromCharCode(65 + move.col)}${move.row + 1}`;
 }
 
-function resultCopy(result) {
-  if (result === "black") return "五子连珠。你赢了。";
-  if (result === "white") return "五子连珠。电脑赢了。";
+function resultCopy(result, seat) {
   if (result === "draw") return "棋盘已满，和棋。";
+  if (result === "black" || result === "white") {
+    if (result === seat) return "五子连珠。你赢了。";
+    return "五子连珠。电脑赢了。";
+  }
   return "对局结束。";
 }
 
-async function postGomoku(moves, difficulty) {
+async function postGomoku(moves, difficulty, side) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(GOMOKU_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moves, difficulty }),
+      body: JSON.stringify({ moves, difficulty, side }),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -49,24 +53,35 @@ async function postGomoku(moves, difficulty) {
   }
 }
 
-function GomokuHeader({ onBack }) {
+function GomokuHeader({ onBack, onHome, seat }) {
   return (
-    <GameHeader onBack={onBack} slogan="你执黑。落一子，Rapfi 回一子。" />
-  );
-}
-
-function GomokuGameOver({ result, onRestart, onDismiss }) {
-  return (
-    <GameOverDialog
-      title="对局结束"
-      message={resultCopy(result)}
-      onRestart={onRestart}
-      onDismiss={onDismiss}
+    <GameHeader
+      onBack={onBack}
+      onHome={onHome}
+      slogan={
+        seat === "white"
+          ? "你执白。Rapfi 先落黑子，再轮到你。"
+          : "你执黑。落一子，Rapfi 回一子。"
+      }
     />
   );
 }
 
-function GomokuAiGame({ onBack }) {
+function GomokuGameOver({ result, seat, onRestart, onDismiss, onBack, onHome }) {
+  return (
+    <GameOverDialog
+      title="对局结束"
+      message={resultCopy(result, seat)}
+      onRestart={onRestart}
+      onDismiss={onDismiss}
+      onBack={onBack}
+      onHome={onHome}
+    />
+  );
+}
+
+function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
+  const [seat, setSeat] = useState(initialSeat === "white" ? "white" : "black");
   const [moves, setMoves] = useState([]);
   const [phase, setPhase] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -76,7 +91,14 @@ function GomokuAiGame({ onBack }) {
   const [difficulty, setDifficulty] = useState("easy");
   const requestGeneration = useRef(0);
 
-  const waitingForEngine = moves.length % 2 === 1 && !gameOver;
+  useEffect(() => {
+    if (initialSeat === "white") askRapfi([]);
+    // Opening engine move only when entering as white.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const turn = moves.length % 2 === 0 ? "black" : "white";
+  const waitingForEngine = turn !== seat && !gameOver;
   const busy = phase !== "idle" || gameOver || waitingForEngine;
   const history = useMemo(() => {
     const rows = [];
@@ -102,13 +124,13 @@ function GomokuAiGame({ onBack }) {
     if (data.game_over) setOverOpen(true);
   }
 
-  async function askRapfi(nextMoves) {
+  async function askRapfi(nextMoves, side = seat) {
     const generation = ++requestGeneration.current;
     const startedAt = performance.now();
     setPhase("thinking");
     setErrorMessage("");
     try {
-      const data = await postGomoku(nextMoves, difficulty);
+      const data = await postGomoku(nextMoves, difficulty, side);
       if (generation !== requestGeneration.current) return;
       const remaining = MIN_THINKING_MS - (performance.now() - startedAt);
       if (remaining > 0) await sleep(remaining);
@@ -129,39 +151,43 @@ function GomokuAiGame({ onBack }) {
   function handlePointClick(row, col) {
     if (busy) return;
     if (moves.some((move) => move.row === row && move.col === col)) return;
-    const nextMoves = [...moves, { row, col, player: "black" }];
+    const nextMoves = [...moves, { row, col, player: seat }];
     setMoves(nextMoves);
     askRapfi(nextMoves);
   }
 
-  function handleRestart() {
+  function handleRestart(nextSeat = seat) {
     requestGeneration.current += 1;
+    setSeat(nextSeat);
     setMoves([]);
     setPhase("idle");
     setErrorMessage("");
     setGameOver(false);
     setResult("");
     setOverOpen(false);
+    if (nextSeat === "white") {
+      askRapfi([], "white");
+    }
   }
 
   const statusLine = gameOver
-    ? resultCopy(result)
+    ? resultCopy(result, seat)
     : phase === "thinking"
       ? "Rapfi 正在想…"
       : waitingForEngine
         ? "轮到电脑。"
-        : "轮到你走。点击棋盘交叉点落下黑子。";
+        : `轮到你走。点击棋盘交叉点落下${seat === "white" ? "白" : "黑"}子。`;
 
   return (
     <GameScreen
-      header={<GomokuHeader onBack={onBack} />}
+      header={<GomokuHeader onBack={onBack} onHome={onHome} seat={seat} />}
       board={
         <GomokuBoard
           moves={moves}
           disabled={busy}
           onPointClick={handlePointClick}
           animateLast={Boolean(
-            moves.length && moves[moves.length - 1].player === "white",
+            moves.length && moves[moves.length - 1].player !== seat,
           )}
         />
       }
@@ -171,8 +197,17 @@ function GomokuAiGame({ onBack }) {
             {statusLine}
           </p>
           <div className="mt-3 text-sm text-neutral-500">
-            15×15 自由规则 · 你执黑
+            15×15 自由规则 · 你执{seat === "white" ? "白" : "黑"}
           </div>
+          <SideSelect
+            value={seat}
+            disabled={phase !== "idle" || moves.length > 0}
+            options={[
+              { id: "black", label: "执黑" },
+              { id: "white", label: "执白" },
+            ]}
+            onChange={(next) => handleRestart(next)}
+          />
           <DifficultySelect
             value={difficulty}
             disabled={phase !== "idle"}
@@ -184,7 +219,7 @@ function GomokuAiGame({ onBack }) {
           <GameControls>
             <button
               type="button"
-              onClick={handleRestart}
+              onClick={() => handleRestart()}
               className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
             >
               重新开局
@@ -216,8 +251,11 @@ function GomokuAiGame({ onBack }) {
         overOpen ? (
           <GomokuGameOver
             result={result}
-            onRestart={handleRestart}
+            seat={seat}
+            onRestart={() => handleRestart()}
             onDismiss={() => setOverOpen(false)}
+            onBack={onBack}
+            onHome={onHome}
           />
         ) : null
       }
@@ -225,147 +263,61 @@ function GomokuAiGame({ onBack }) {
   );
 }
 
-function GomokuLobby({
-  onBack,
-  onAi,
-  onCreate,
-  joinDraft,
-  onJoinDraft,
-  onJoin,
-  errorMessage,
-}) {
-  return (
-    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh]">
-      <header className="flex shrink-0 items-center justify-between">
-        <span className="text-base font-semibold tracking-tight sm:text-lg">
-          PlyHan
-        </span>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
-        >
-          选择棋种
-        </button>
-      </header>
-      <div className="min-w-0">
-        <h1 className="mt-8 text-3xl font-bold leading-tight sm:text-4xl">
-          五子棋
-        </h1>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-500">
-          自己对电脑，或创建房间把链接发给对方。
-        </p>
-      </div>
-      <div className="mt-8 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:gap-4 md:grid-cols-2">
-        <button
-          type="button"
-          onClick={onAi}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:p-8"
-        >
-          <span className="text-sm text-neutral-500">Rapfi</span>
-          <span>
-            <span className="block text-2xl font-bold">自己对电脑</span>
-            <span className="mt-3 block text-sm text-neutral-500">
-              你执黑，本机引擎回一手
-            </span>
-          </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
-        </button>
-        <button
-          type="button"
-          onClick={onCreate}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:p-8"
-        >
-          <span className="text-sm text-neutral-500">联机</span>
-          <span>
-            <span className="block text-2xl font-bold">创建房间</span>
-            <span className="mt-3 block text-sm text-neutral-500">
-              生成房间码和链接，你执黑
-            </span>
-          </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
-        </button>
-      </div>
-      <form
-        className="mt-4 shrink-0 border-t border-neutral-800 pt-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onJoin();
-        }}
-      >
-        <label className="block text-sm text-neutral-500">加入房间</label>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <input
-            value={joinDraft}
-            onChange={(event) => onJoinDraft(event.target.value.toUpperCase())}
-            placeholder="输入房间码"
-            maxLength={8}
-            className="min-w-0 flex-1 rounded-none border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono tracking-widest text-neutral-100 outline-none focus:border-red-600"
-          />
-          <button
-            type="submit"
-            className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
-          >
-            加入
-          </button>
-        </div>
-        {errorMessage ? (
-          <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
-        ) : null}
-      </form>
-    </main>
-  );
-}
-
 export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode }) {
-  const [mode, setMode] = useState(initialRoomCode ? "online" : "");
-  const [roomCode, setRoomCode] = useState((initialRoomCode || "").toUpperCase());
-  const [joinDraft, setJoinDraft] = useState((initialRoomCode || "").toUpperCase());
-  const [lobbyError, setLobbyError] = useState("");
+  const lobby = useLobbyMode({
+    initialRoomCode,
+    onRoomCode,
+    defaultSeat: "black",
+  });
 
-  if (mode === "ai") {
-    return <GomokuAiGame onBack={onBack} />;
+  if (lobby.mode === "ai") {
+    return (
+      <GomokuAiGame
+        onBack={() => lobby.setMode("")}
+        onHome={onBack}
+        initialSeat={lobby.seat}
+      />
+    );
   }
-  if (mode === "online") {
+  if (lobby.mode === "online") {
     return (
       <GomokuOnline
-        initialCode={roomCode}
-        onBack={() => {
-          setLobbyError("");
-          setRoomCode("");
-          setJoinDraft("");
-          setMode("");
-          onRoomCode?.("");
+        initialCode={lobby.roomCode}
+        createSeat={lobby.seat}
+        onBack={lobby.leaveRoom}
+        onHome={() => {
+          lobby.leaveRoom();
+          onBack();
         }}
-        onRoomCode={(code) => {
-          onRoomCode?.(code);
-        }}
+        onRoomCode={onRoomCode}
       />
     );
   }
 
   return (
-    <GomokuLobby
+    <GameLobby
+      title="五子棋"
+      blurb="自己对电脑，或创建房间把链接发给对方。先选执黑或执白。"
+      engineLabel="Rapfi"
+      engineHint={
+        lobby.seat === "white" ? "你执白，Rapfi 先走黑" : "你执黑，本机引擎回一手"
+      }
+      onlineHint={
+        lobby.seat === "white" ? "生成房间码和链接，你执白" : "生成房间码和链接，你执黑"
+      }
+      seat={lobby.seat}
+      seats={[
+        { id: "black", label: "执黑" },
+        { id: "white", label: "执白" },
+      ]}
+      onSeat={lobby.setSeat}
       onBack={onBack}
-      onAi={() => setMode("ai")}
-      onCreate={() => {
-        setLobbyError("");
-        setRoomCode("");
-        setMode("online");
-      }}
-      joinDraft={joinDraft}
-      onJoinDraft={setJoinDraft}
-      onJoin={() => {
-        const nextCode = joinDraft.trim().toUpperCase();
-        if (!nextCode) {
-          setLobbyError("请输入房间码。");
-          return;
-        }
-        setLobbyError("");
-        setRoomCode(nextCode);
-        setMode("online");
-      }}
-      errorMessage={lobbyError}
+      onAi={() => lobby.setMode("ai")}
+      onCreate={lobby.createRoom}
+      joinDraft={lobby.joinDraft}
+      onJoinDraft={lobby.setJoinDraft}
+      onJoin={lobby.joinRoom}
+      errorMessage={lobby.lobbyError}
     />
   );
 }

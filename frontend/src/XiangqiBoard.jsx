@@ -52,6 +52,7 @@ export default function XiangqiBoard({
   animating,
   disabled,
   onSquareClick,
+  flipped = false,
 }) {
   const board = parseBoard(fen);
   const targetSet = new Set(legalTargets || []);
@@ -65,6 +66,7 @@ export default function XiangqiBoard({
         style={{
           background:
             "radial-gradient(circle at 30% 20%, #f3e0c2 0%, #d7b07a 55%, #b8894d 100%)",
+          transform: flipped ? "rotate(180deg)" : undefined,
         }}
       >
         <svg
@@ -131,6 +133,7 @@ export default function XiangqiBoard({
             fontSize="36"
             fill="#7a4a22"
             opacity="0.55"
+            transform={flipped ? "rotate(180 450 515)" : undefined}
           >
             楚河  汉界
           </text>
@@ -175,13 +178,18 @@ export default function XiangqiBoard({
                   ) : null}
                   {piece ? (
                     <span
-                      className={`relative z-10 flex h-[72%] w-[72%] items-center justify-center rounded-full border-2 text-[clamp(0.65rem,8cqi,1.35rem)] font-bold shadow-sm ${
-                        isRed
-                          ? "border-red-700 bg-[#fff4e8] text-red-700"
-                          : "border-neutral-800 bg-[#f7f2ea] text-neutral-900"
-                      } ${animateHere ? "xiangqi-ai-drop" : ""}`}
+                      className="relative z-10 flex h-[72%] w-[72%] items-center justify-center"
+                      style={flipped ? { transform: "rotate(180deg)" } : undefined}
                     >
-                      {PIECE_LABEL[piece] || piece}
+                      <span
+                        className={`flex h-full w-full items-center justify-center rounded-full border-2 text-[clamp(0.65rem,8cqi,1.35rem)] font-bold shadow-sm ${
+                          isRed
+                            ? "border-red-700 bg-[#fff4e8] text-red-700"
+                            : "border-neutral-800 bg-[#f7f2ea] text-neutral-900"
+                        } ${animateHere ? "xiangqi-ai-drop" : ""}`}
+                      >
+                        {PIECE_LABEL[piece] || piece}
+                      </span>
                     </span>
                   ) : null}
                 </button>
