@@ -83,21 +83,21 @@ CHESS_DIFFICULTY = {
 }
 GOMOKU_BOARD_SIZE = 15
 GOMOKU_SEARCH_MS = {
-    "beginner": 600,
-    "easy": 650,
-    "normal": 800,
-    "hard": 800,
+    "beginner": 800,
+    "easy": 1000,
+    "normal": 1200,
+    "hard": 1500,
 }
 GOMOKU_DIFFICULTY_STRENGTH = {
-    "beginner": 3,
-    "easy": 17,
-    "normal": 41,
-    "hard": 85,
+    "beginner": 20,
+    "easy": 45,
+    "normal": 75,
+    "hard": 100,
 }
 GOMOKU_MISTAKE_PERCENT = {
-    "beginner": 58,
-    "easy": 30,
-    "normal": 9,
+    "beginner": 22,
+    "easy": 10,
+    "normal": 0,
     "hard": 0,
 }
 XIANGQI_DIFFICULTY = {
@@ -879,19 +879,28 @@ def weakened_gomoku_move(
         if (row, col) not in occupied
     ]
     engine_player = "white" if moves and moves[-1].player == "black" else "black"
-    immediate_wins = [
-        point
-        for point in legal_points
-        if gomoku_winner(
-            [
-                *moves,
-                GomokuMove(row=point[0], col=point[1], player=engine_player),
-            ]
+    opponent = "black" if engine_player == "white" else "white"
+
+    def wins_for(player: str, point: tuple[int, int]) -> bool:
+        return (
+            gomoku_winner(
+                [
+                    *moves,
+                    GomokuMove(row=point[0], col=point[1], player=player),
+                ]
+            )
+            == player
         )
-        == engine_player
-    ]
+
+    immediate_wins = [point for point in legal_points if wins_for(engine_player, point)]
     if force_mate and immediate_wins:
-        return sorted(immediate_wins)[0]
+        rapfi = (rapfi_row, rapfi_col)
+        return rapfi if rapfi in immediate_wins else sorted(immediate_wins)[0]
+
+    immediate_blocks = [point for point in legal_points if wins_for(opponent, point)]
+    if force_mate and immediate_blocks:
+        rapfi = (rapfi_row, rapfi_col)
+        return rapfi if rapfi in immediate_blocks else sorted(immediate_blocks)[0]
 
     candidates: set[tuple[int, int]] = set()
     for move in moves:
@@ -1015,7 +1024,7 @@ def gomoku_play(payload: GomokuPlayRequest) -> GomokuPlayResponse:
             row,
             col,
             GOMOKU_MISTAKE_PERCENT[payload.difficulty],
-            force_mate=force_engine_mate(payload.difficulty),
+            force_mate=True,
         )
 
     engine_move = GomokuMove(row=row, col=col, player=turn)
