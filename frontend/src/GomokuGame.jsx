@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import GomokuBoard from "./GomokuBoard.jsx";
 import GomokuOnline from "./GomokuOnline.jsx";
 import GameLobby, { useLobbyMode } from "./GameLobby.jsx";
@@ -90,6 +90,7 @@ function GomokuGameOver({ result, seat, onRestart, onDismiss, onBack, onHome }) 
 
 function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
   const [seat, setSeat] = useState(initialSeat === "white" ? "white" : "black");
+  const [started, setStarted] = useState(false);
   const [moves, setMoves] = useState([]);
   const [phase, setPhase] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -98,16 +99,11 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
   const [overOpen, setOverOpen] = useState(false);
   const [difficulty, setDifficulty] = useState("easy");
   const requestGeneration = useRef(0);
-
-  useEffect(() => {
-    if (initialSeat === "white") askRapfi([]);
-    // Opening engine move only when entering as white.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const startedRef = useRef(false);
 
   const turn = moves.length % 2 === 0 ? "black" : "white";
-  const waitingForEngine = turn !== seat && !gameOver;
-  const busy = phase !== "idle" || gameOver || waitingForEngine;
+  const waitingForEngine = started && turn !== seat && !gameOver;
+  const busy = !started || phase !== "idle" || gameOver || waitingForEngine;
   const history = useMemo(() => {
     const rows = [];
     for (let index = 0; index < moves.length; index += 2) {
@@ -169,8 +165,20 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
     askRapfi(nextMoves);
   }
 
+  function handleStart() {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    setStarted(true);
+    setErrorMessage("");
+    if (seat === "white") {
+      askRapfi([], "white");
+    }
+  }
+
   function handleRestart(nextSeat = seat) {
     requestGeneration.current += 1;
+    startedRef.current = false;
+    setStarted(false);
     setSeat(nextSeat);
     setMoves([]);
     setPhase("idle");
@@ -178,18 +186,17 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
     setGameOver(false);
     setResult("");
     setOverOpen(false);
-    if (nextSeat === "white") {
-      askRapfi([], "white");
-    }
   }
 
-  const statusLine = gameOver
-    ? resultCopy(result, seat)
-    : phase === "thinking"
-      ? "Rapfi 正在想…"
-      : waitingForEngine
-        ? "轮到电脑。"
-        : `轮到你走。点击棋盘交叉点落下${seat === "white" ? "白" : "黑"}子。`;
+  const statusLine = !started
+    ? "先选执棋和难度，再点开始游戏。"
+    : gameOver
+      ? resultCopy(result, seat)
+      : phase === "thinking"
+        ? "Rapfi 正在想…"
+        : waitingForEngine
+          ? "轮到电脑。"
+          : `轮到你走。点击棋盘交叉点落下${seat === "white" ? "白" : "黑"}子。`;
 
   return (
     <GameScreen
@@ -212,29 +219,42 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
           </div>
           <SideSelect
             value={seat}
-            disabled={phase !== "idle" || moves.length > 0}
+            disabled={started}
             options={[
               { id: "black", label: "执黑" },
               { id: "white", label: "执白" },
             ]}
-            onChange={(next) => handleRestart(next)}
+            onChange={setSeat}
           />
           <DifficultySelect
             value={difficulty}
-            disabled={phase !== "idle"}
+            disabled={started}
             onChange={setDifficulty}
           />
+          {started ? (
+            <p className="mt-1 text-xs text-neutral-500">对局开始后不能改难度。</p>
+          ) : null}
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
           ) : null}
           <GameControls>
-            <button
-              type="button"
-              onClick={() => handleRestart()}
-              className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
-            >
-              重新开局
-            </button>
+            {started ? (
+              <button
+                type="button"
+                onClick={() => handleRestart()}
+                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                重新开局
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStart}
+                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                开始游戏
+              </button>
+            )}
             {waitingForEngine && phase === "idle" ? (
               <button
                 type="button"
