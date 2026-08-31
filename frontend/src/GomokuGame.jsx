@@ -16,10 +16,18 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const GOMOKU_URL = `${API_BASE_URL}/api/v1/gomoku/play`;
 const FETCH_TIMEOUT_MS = 30000;
-const MIN_THINKING_MS = 0;
+const AI_THINK_MIN_MS = 2000;
+const AI_THINK_MAX_MS = 4000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function aiThinkMs() {
+  return (
+    AI_THINK_MIN_MS +
+    Math.floor(Math.random() * (AI_THINK_MAX_MS - AI_THINK_MIN_MS + 1))
+  );
 }
 
 function coordinate(move) {
@@ -127,13 +135,18 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
   async function askRapfi(nextMoves, side = seat) {
     const generation = ++requestGeneration.current;
     const startedAt = performance.now();
+    const thinkFor = aiThinkMs();
     setPhase("thinking");
     setErrorMessage("");
     try {
       const data = await postGomoku(nextMoves, difficulty, side);
       if (generation !== requestGeneration.current) return;
-      const remaining = MIN_THINKING_MS - (performance.now() - startedAt);
-      if (remaining > 0) await sleep(remaining);
+      const aiReplied =
+        Array.isArray(data.moves) && data.moves.length > nextMoves.length;
+      if (aiReplied) {
+        const remaining = thinkFor - (performance.now() - startedAt);
+        if (remaining > 0) await sleep(remaining);
+      }
       if (generation !== requestGeneration.current) return;
       applyResponse(data);
     } catch (error) {
@@ -186,9 +199,7 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
           moves={moves}
           disabled={busy}
           onPointClick={handlePointClick}
-          animateLast={Boolean(
-            moves.length && moves[moves.length - 1].player !== seat,
-          )}
+          animateLast={moves.length > 0}
         />
       }
       panel={

@@ -371,9 +371,7 @@ export default function GomokuOnline({
           moves={moves}
           disabled={!myTurn}
           onPointClick={handlePointClick}
-          animateLast={Boolean(
-            moves.length && moves[moves.length - 1].player !== seat,
-          )}
+          animateLast={moves.length > 0}
         />
       }
       panel={
