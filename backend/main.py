@@ -49,6 +49,19 @@ except ImportError:
     from xiangqi import Board as XiangqiBoard
     from xiangqi import parse_uci as parse_xiangqi_uci
 
+try:
+    from .draughts import START_FEN as DRAUGHTS_START_FEN
+    from .draughts import Board as DraughtsBoard
+    from .draughts import best_move as draughts_best_move
+    from .draughts import immediate_win as draughts_immediate_win
+    from .draughts import scored_moves as draughts_scored_moves
+except ImportError:
+    from draughts import START_FEN as DRAUGHTS_START_FEN
+    from draughts import Board as DraughtsBoard
+    from draughts import best_move as draughts_best_move
+    from draughts import immediate_win as draughts_immediate_win
+    from draughts import scored_moves as draughts_scored_moves
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
@@ -130,6 +143,13 @@ XIANGQI_DIFFICULTY = {
         "pick_index": 0,
         "mistake_percent": 0,
     },
+}
+DRAUGHTS_DIFFICULTY = {
+    # depth, mistake_percent
+    "beginner": (3, 22),
+    "easy": (5, 0),
+    "normal": (8, 0),
+    "hard": (11, 0),
 }
 XIANGQI_PIECE_VALUE = {
     "K": 0,
@@ -1221,6 +1241,141 @@ def xiangqi_play(payload: XiangqiPlayRequest) -> XiangqiPlayResponse:
         board.push_uci(engine_uci)
 
     return xiangqi_play_state(
+        board,
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
+    )
+
+
+class DraughtsPlayRequest(BaseModel):
+    fen: str = ""
+    uci: str = ""
+    difficulty: Literal["beginner", "easy", "normal", "hard"] = "easy"
+    side: Literal["black", "white"] = "black"
+
+
+class DraughtsPlayResponse(BaseModel):
+    status: Literal["success", "error"]
+    error_message: str
+    fen: str
+    turn: Literal["black", "white", ""]
+    legal_uci: list[str]
+    user_san: str
+    user_uci: str
+    engine_san: str
+    engine_uci: str
+    from_square: str
+    to_square: str
+    game_over: bool
+    result: Literal["black", "white", ""]
+
+
+def draughts_play_state(
+    board: DraughtsBoard,
+    *,
+    error: str = "",
+    user_san: str = "",
+    user_uci: str = "",
+    engine_san: str = "",
+    engine_uci: str = "",
+    from_square: str = "",
+    to_square: str = "",
+) -> DraughtsPlayResponse:
+    over = board.game_over()
+    return DraughtsPlayResponse(
+        status="error" if error else "success",
+        error_message=error,
+        fen=board.fen(),
+        turn="" if over else ("black" if board.turn == "b" else "white"),
+        legal_uci=[] if over else board.generate_legal_moves(),
+        user_san=user_san,
+        user_uci=user_uci,
+        engine_san=engine_san,
+        engine_uci=engine_uci,
+        from_square=from_square,
+        to_square=to_square,
+        game_over=over,
+        result=board.result() if over else "",
+    )
+
+
+def draughts_position_seed(fen: str) -> int:
+    return sum((index + 1) * ord(char) for index, char in enumerate(fen))
+
+
+def weaker_draughts_move(board: DraughtsBoard, best: str, mistake_percent: int) -> str:
+    win = draughts_immediate_win(board)
+    if win:
+        return win
+    if mistake_percent <= 0 or not best:
+        return best
+    if draughts_position_seed(board.fen()) % 100 >= mistake_percent:
+        return best
+    ranked = draughts_scored_moves(board, 2)
+    candidates = [uci for score, uci in ranked if uci != best]
+    if not candidates:
+        return best
+    pool = candidates[-max(1, len(candidates) // 3) :]
+    return pool[draughts_position_seed(board.fen()) % len(pool)]
+
+
+@app.post("/api/v1/draughts/play", response_model=DraughtsPlayResponse)
+def draughts_play(payload: DraughtsPlayRequest) -> DraughtsPlayResponse:
+    fen = (payload.fen or "").strip() or DRAUGHTS_START_FEN
+    try:
+        board = DraughtsBoard(fen)
+    except ValueError:
+        return draughts_play_state(DraughtsBoard(), error="局面无效。")
+
+    user_san = ""
+    user_uci = ""
+    engine_san = ""
+    engine_uci = ""
+    from_square = ""
+    to_square = ""
+    user_turn = "b" if payload.side == "black" else "w"
+    uci = (payload.uci or "").strip().lower()
+
+    if uci:
+        if board.turn != user_turn:
+            return draughts_play_state(board, error="还没轮到你走。")
+        if not board.is_legal(uci):
+            return draughts_play_state(board, error="这步不合法。")
+        user_san = board.san_like(uci)
+        user_uci = uci
+        from_square = uci[:2]
+        to_square = uci[-2:]
+        board.push_uci(uci)
+        if board.game_over():
+            return draughts_play_state(
+                board,
+                user_san=user_san,
+                user_uci=user_uci,
+                from_square=from_square,
+                to_square=to_square,
+            )
+
+    if board.turn != user_turn and not board.game_over():
+        depth, mistake_percent = DRAUGHTS_DIFFICULTY[payload.difficulty]
+        engine_uci = draughts_best_move(board, depth)
+        engine_uci = weaker_draughts_move(board, engine_uci, mistake_percent)
+        if not engine_uci or not board.is_legal(engine_uci):
+            return draughts_play_state(
+                board,
+                error="跳棋引擎没有返回合法着法，请重试。",
+                user_san=user_san,
+                user_uci=user_uci,
+            )
+        engine_san = board.san_like(engine_uci)
+        from_square = engine_uci[:2]
+        to_square = engine_uci[-2:]
+        board.push_uci(engine_uci)
+
+    return draughts_play_state(
         board,
         user_san=user_san,
         user_uci=user_uci,

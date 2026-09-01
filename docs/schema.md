@@ -196,3 +196,19 @@
 房间字段与国际象棋房间相同，另有 `red_ready` `restart_red`。`turn` / `result` 用 `"red"` `"black"`。
 
 邀请链接：`/?game=xiangqi&r={code}`。
+
+---
+
+## 8. 英美跳棋人机
+
+8×8 深色格、英式规则（兵只向前走/吃，无飞行王，有吃必吃，升王当回合结束）。只做人机，无房间。黑先行。
+
+### `POST /api/v1/draughts/play`
+
+```json
+{ "fen": "", "uci": "", "difficulty": "easy", "side": "black" }
+```
+
+`fen` 空则用开局。`uci` 为空时若轮到电脑则由本机 alpha-beta 走一步。着法为代数坐标拼接，如 `b6c5`、`c5e3`、连跳 `c5e3g1`。
+
+响应第一层：`status` `error_message` `fen` `turn` `legal_uci` `user_san` `user_uci` `engine_san` `engine_uci` `from_square` `to_square` `game_over` `result`。`turn` / `side` / `result` 为 `"black"` `"white"` 或空。`difficulty` 为 `beginner` `easy` `normal` `hard`。

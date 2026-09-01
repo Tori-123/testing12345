@@ -42,6 +42,15 @@ body,
   transform: scale(1.08);
 }
 
+.draughts-man-fly {
+  transform: scale(1.08);
+}
+
+.draughts-captured {
+  opacity: 0;
+  transition: opacity 280ms ease-out;
+}
+
 .gomoku-stone {
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -217,7 +226,11 @@ body,
   .gomoku-stone-shadow-in,
   .gomoku-stone-ripple,
   .gomoku-stone-place .gomoku-last-mark,
-  .xiangqi-ai-drop {
+  .xiangqi-ai-drop,
+  .draughts-man-fly,
+  .draughts-captured {
     animation: none;
+    transition: none;
+    opacity: 1;
   }
 }

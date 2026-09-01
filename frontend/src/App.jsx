@@ -1,9 +1,29 @@
 import { useState } from "react";
 import ChessGame from "./ChessGame.jsx";
+import DraughtsGame from "./DraughtsGame.jsx";
 import GomokuGame from "./GomokuGame.jsx";
 import XiangqiGame from "./XiangqiGame.jsx";
 
-const GAMES = new Set(["chess", "gomoku", "xiangqi"]);
+const GAMES = new Set(["chess", "gomoku", "xiangqi", "draughts"]);
+
+function GameCard({ engine, title, hint, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,38vh)] md:min-h-[11rem]"
+    >
+      <span className="text-sm text-neutral-500">{engine}</span>
+      <span>
+        <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
+          {title}
+        </span>
+        <span className="mt-3 block text-sm text-neutral-500">{hint}</span>
+      </span>
+      <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
+    </button>
+  );
+}
 
 function ModePicker({ onSelect }) {
   return (
@@ -16,58 +36,34 @@ function ModePicker({ onSelect }) {
           </h1>
         </div>
         <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
-          选一个棋盘。可以对电脑，也可以开房间把链接发给对方。
+          选一个棋盘。国际象棋、五子棋、中国象棋可以对电脑或开房间；跳棋目前只对人机。
         </p>
       </header>
-      <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:gap-4 md:grid-cols-3 md:content-center md:items-stretch">
-        <button
-          type="button"
+      <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:grid-cols-2 sm:gap-4 md:content-center md:items-stretch">
+        <GameCard
+          engine="Chess API"
+          title="国际象棋"
+          hint="人机或开房间联机"
           onClick={() => onSelect("chess")}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
-        >
-          <span className="text-sm text-neutral-500">Chess API</span>
-          <span>
-            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
-              国际象棋
-            </span>
-            <span className="mt-3 block text-sm text-neutral-500">
-              人机或开房间联机
-            </span>
-          </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
-        </button>
-        <button
-          type="button"
+        />
+        <GameCard
+          engine="Rapfi"
+          title="五子棋"
+          hint="人机或开房间联机"
           onClick={() => onSelect("gomoku")}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
-        >
-          <span className="text-sm text-neutral-500">Rapfi</span>
-          <span>
-            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
-              五子棋
-            </span>
-            <span className="mt-3 block text-sm text-neutral-500">
-              人机或开房间联机
-            </span>
-          </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
-        </button>
-        <button
-          type="button"
+        />
+        <GameCard
+          engine="Pikafish"
+          title="中国象棋"
+          hint="人机或开房间联机"
           onClick={() => onSelect("xiangqi")}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,42vh)] md:min-h-[12rem]"
-        >
-          <span className="text-sm text-neutral-500">Pikafish</span>
-          <span>
-            <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
-              中国象棋
-            </span>
-            <span className="mt-3 block text-sm text-neutral-500">
-              人机或开房间联机
-            </span>
-          </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
-        </button>
+        />
+        <GameCard
+          engine="本机搜索"
+          title="跳棋"
+          hint="8×8 英美规则，只对人机"
+          onClick={() => onSelect("draughts")}
+        />
       </div>
     </main>
   );
@@ -132,6 +128,9 @@ export default function App() {
         onRoomCode={(code) => writeInvite("xiangqi", code)}
       />
     );
+  }
+  if (selectedGame === "draughts") {
+    return <DraughtsGame onBack={goHome} />;
   }
   return (
     <ModePicker
