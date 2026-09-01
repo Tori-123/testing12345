@@ -89,6 +89,7 @@ async function postJson(path, body) {
 export default function GomokuOnline({
   initialCode,
   createSeat = "black",
+  clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
@@ -163,6 +164,8 @@ export default function GomokuOnline({
     setGameOver(Boolean(data.game_over));
     setResult(data.result || "");
     setEndReason(data.end_reason || "");
+    const limit =
+      typeof data.clock_limit_ms === "number" ? data.clock_limit_ms : clockLimitMs;
     if (typeof data.clock_limit_ms === "number") {
       setClockLimitMs(data.clock_limit_ms);
     }
@@ -174,7 +177,8 @@ export default function GomokuOnline({
         running:
           Boolean(data.black_ready) &&
           Boolean(data.white_ready) &&
-          !data.game_over,
+          !data.game_over &&
+          limit > 0,
       };
     }
     if (data.error_message) setErrorMessage(data.error_message);
@@ -210,6 +214,7 @@ export default function GomokuOnline({
         } else {
           data = await postJson("/api/v1/gomoku/rooms", {
             seat: createSeat === "white" ? "white" : "black",
+            clock: clockEnabled !== false,
           });
         }
         if (cancelled) return;
@@ -306,9 +311,9 @@ export default function GomokuOnline({
     clockSyncRef.current = {
       remain: clockLimitMs,
       at: performance.now(),
-      running: true,
+      running: clockLimitMs > 0,
     };
-    setDisplayClockMs(clockLimitMs);
+    if (clockLimitMs > 0) setDisplayClockMs(clockLimitMs);
     setErrorMessage("");
     send({ type: "move", row, col });
   }
@@ -380,9 +385,13 @@ export default function GomokuOnline({
           <div className="mt-3 text-sm text-neutral-500">
             15×15 自由规则 · 你执{seat === "white" ? "白" : "黑"}
             {bothReady ? " · 对方已加入" : " · 等待对方"}
-            {bothReady ? ` · 每手 ${Math.round(clockLimitMs / 1000)} 秒` : ""}
+            {bothReady
+              ? clockLimitMs > 0
+                ? ` · 每手 ${Math.round(clockLimitMs / 1000)} 秒`
+                : " · 不限时"
+              : ""}
           </div>
-          {bothReady ? (
+          {bothReady && clockLimitMs > 0 ? (
             <div className="mt-3 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
               <span className="text-xs font-semibold tracking-wide text-neutral-500">
                 {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}

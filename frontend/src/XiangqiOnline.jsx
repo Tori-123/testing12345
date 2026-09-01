@@ -3,6 +3,7 @@ import BoardOnline from "./BoardOnline.jsx";
 import XiangqiBoard, {
   XIANGQI_START_FEN,
   applyUciToFen,
+  clearSquareFen,
   legalTargetsFor,
   pieceAtFen,
 } from "./XiangqiBoard.jsx";
@@ -29,7 +30,16 @@ function pairHistory(sans) {
   return rows;
 }
 
-function XiangqiOnlineBoard({ fen, legalUci, fromSquare, toSquare, myTurn, seat, onMove }) {
+function XiangqiOnlineBoard({
+  fen,
+  legalUci,
+  fromSquare,
+  toSquare,
+  myTurn,
+  seat,
+  flight,
+  onMove,
+}) {
   const [selected, setSelected] = useState("");
   const targets = useMemo(
     () => legalTargetsFor(selected, legalUci),
@@ -63,6 +73,7 @@ function XiangqiOnlineBoard({ fen, legalUci, fromSquare, toSquare, myTurn, seat,
       lastMove={
         fromSquare && toSquare ? { from: fromSquare, to: toSquare } : null
       }
+      flight={flight}
       disabled={!myTurn}
       flipped={seat === "black"}
       onSquareClick={handleSquareClick}
@@ -73,6 +84,7 @@ function XiangqiOnlineBoard({ fen, legalUci, fromSquare, toSquare, myTurn, seat,
 export default function XiangqiOnline({
   initialCode,
   createSeat = "red",
+  clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
@@ -82,12 +94,15 @@ export default function XiangqiOnline({
       game="xiangqi"
       initialCode={initialCode}
       createSeat={createSeat}
+      clockEnabled={clockEnabled}
       firstSeat="red"
       secondSeat="black"
       startFen={XIANGQI_START_FEN}
       storageKey="plyhan-xiangqi-seat"
       pairHistory={pairHistory}
       resultCopy={resultCopy}
+      readPiece={pieceAtFen}
+      clearSquare={clearSquareFen}
       sloganFor={(seat) =>
         seat === "black"
           ? "你执黑。把链接发给对方，对方执红先走。"
@@ -96,7 +111,13 @@ export default function XiangqiOnline({
       metaFor={(seat, bothReady, clockLimitMs) =>
         `9×10 · 你执${seat === "black" ? "黑" : "红"}${
           bothReady ? " · 对方已加入" : " · 等待对方"
-        }${bothReady ? ` · 每手 ${Math.round(clockLimitMs / 1000)} 秒` : ""}`
+        }${
+          bothReady
+            ? clockLimitMs > 0
+              ? ` · 每手 ${Math.round(clockLimitMs / 1000)} 秒`
+              : " · 不限时"
+            : ""
+        }`
       }
       onBack={onBack}
       onHome={onHome}

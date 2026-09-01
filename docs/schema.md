@@ -119,7 +119,7 @@
 
 只读快照。
 
-房间响应第一层字段：`status` `error_message` `code` `seat` `token` `black_ready` `white_ready` `moves` `turn` `game_over` `result` `end_reason` `clock_ms` `clock_limit_ms` `restart_black` `restart_white`。`moves` 项为 `{ "row", "col", "player" }`，`player` 为 `"black"` 或 `"white"`。`end_reason` 为 `""` `"five"` `"draw"` `"resign"` `"timeout"`。双方到齐后每手 `clock_limit_ms`（默认 60000）倒计时，超时判负。`restart_black` / `restart_white` 表示该座位已申请再来一局；两边都为 `true` 时服务端才清空棋盘并重新计时。任意一方落子会清掉未完成的申请。
+房间响应第一层字段：`status` `error_message` `code` `seat` `token` `black_ready` `white_ready` `moves` `turn` `game_over` `result` `end_reason` `clock_ms` `clock_limit_ms` `restart_black` `restart_white`。`moves` 项为 `{ "row", "col", "player" }`，`player` 为 `"black"` 或 `"white"`。`end_reason` 为 `""` `"five"` `"draw"` `"resign"` `"timeout"`。双方到齐后每手 `clock_limit_ms`（默认 60000）倒计时，超时判负。创建房间时可传 `"clock": false` 关闭步时，此时 `clock_limit_ms` 为 `0`。`restart_black` / `restart_white` 表示该座位已申请再来一局；两边都为 `true` 时服务端才清空棋盘并重新计时。任意一方落子会清掉未完成的申请。
 
 ### WebSocket `/api/v1/gomoku/rooms/{code}/ws?token=`
 
@@ -152,8 +152,10 @@
 ### `POST /api/v1/chess/rooms`
 
 ```json
-{ "seat": "white" }
+{ "seat": "white", "clock": true }
 ```
+
+`clock` 默认 `true`（每手 60 秒）；`false` 则不限时。
 
 ### `POST /api/v1/chess/rooms/{code}/join`
 

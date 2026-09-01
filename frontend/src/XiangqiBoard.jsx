@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 const FILES = "abcdefghi";
 const RANKS = "9876543210"; // display top (black) to bottom (red)
 
@@ -44,12 +46,83 @@ function squareFromCoords(file, rank) {
   return `${FILES[file]}${rank}`;
 }
 
+function parseSquare(square) {
+  if (!square || square.length !== 2) return null;
+  const file = FILES.indexOf(square[0]);
+  const rank = Number(square[1]);
+  if (file < 0 || Number.isNaN(rank) || rank < 0 || rank > 9) return null;
+  return { file, rank };
+}
+
+function squareBox(square) {
+  const parsed = parseSquare(square);
+  if (!parsed) return { left: "0%", top: "0%" };
+  return {
+    left: `${(parsed.file / 9) * 100}%`,
+    top: `${((9 - parsed.rank) / 10) * 100}%`,
+  };
+}
+
+function PieceDisk({ piece, flying = false }) {
+  const isRed = piece && piece === piece.toUpperCase();
+  return (
+    <span
+      className={`flex h-[72%] w-[72%] items-center justify-center rounded-full border-2 text-[clamp(0.65rem,8cqi,1.35rem)] font-bold shadow-sm ${
+        isRed
+          ? "border-red-700 bg-[#fff4e8] text-red-700"
+          : "border-neutral-800 bg-[#f7f2ea] text-neutral-900"
+      } ${flying ? "shadow-md" : ""}`}
+    >
+      {PIECE_LABEL[piece] || piece}
+    </span>
+  );
+}
+
+function FlyingPiece({ from, to, piece, duration, flipped = false }) {
+  const [pos, setPos] = useState(squareBox(from));
+  const [moving, setMoving] = useState(false);
+
+  useEffect(() => {
+    setMoving(false);
+    setPos(squareBox(from));
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setMoving(true);
+        setPos(squareBox(to));
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [from, to, piece, duration]);
+
+  return (
+    <div
+      className="pointer-events-none absolute z-20 flex items-center justify-center"
+      style={{
+        left: pos.left,
+        top: pos.top,
+        width: `${100 / 9}%`,
+        height: `${100 / 10}%`,
+        transition: moving
+          ? `left ${duration}ms ease-in-out, top ${duration}ms ease-in-out`
+          : "none",
+      }}
+    >
+      <span
+        className="flex h-full w-full items-center justify-center"
+        style={flipped ? { transform: "rotate(180deg)" } : undefined}
+      >
+        <PieceDisk piece={piece} flying />
+      </span>
+    </div>
+  );
+}
+
 export default function XiangqiBoard({
   fen,
   selected,
   legalTargets,
   lastMove,
-  animating,
+  flight = null,
   disabled,
   onSquareClick,
   flipped = false,
@@ -149,12 +222,7 @@ export default function XiangqiBoard({
               const isSelected = selected === square;
               const isTarget = targetSet.has(square);
               const isLast = square === lastFrom || square === lastTo;
-              const isRed = piece && piece === piece.toUpperCase();
-              const animateHere =
-                animating &&
-                animating.to === square &&
-                piece &&
-                piece === piece.toLowerCase();
+              const hiddenByFlight = flight && square === flight.from;
 
               return (
                 <button
@@ -176,20 +244,12 @@ export default function XiangqiBoard({
                   {isTarget ? (
                     <span className="absolute h-[22%] w-[22%] max-h-3 max-w-3 min-h-[0.4rem] min-w-[0.4rem] rounded-full bg-red-600/70" />
                   ) : null}
-                  {piece ? (
+                  {piece && !hiddenByFlight ? (
                     <span
-                      className="relative z-10 flex h-[72%] w-[72%] items-center justify-center"
+                      className="relative z-10 flex h-full w-full items-center justify-center"
                       style={flipped ? { transform: "rotate(180deg)" } : undefined}
                     >
-                      <span
-                        className={`flex h-full w-full items-center justify-center rounded-full border-2 text-[clamp(0.65rem,8cqi,1.35rem)] font-bold shadow-sm ${
-                          isRed
-                            ? "border-red-700 bg-[#fff4e8] text-red-700"
-                            : "border-neutral-800 bg-[#f7f2ea] text-neutral-900"
-                        } ${animateHere ? "xiangqi-ai-drop" : ""}`}
-                      >
-                        {PIECE_LABEL[piece] || piece}
-                      </span>
+                      <PieceDisk piece={piece} />
                     </span>
                   ) : null}
                 </button>
@@ -197,6 +257,16 @@ export default function XiangqiBoard({
             }),
           )}
         </div>
+        {flight ? (
+          <FlyingPiece
+            key={`${flight.from}${flight.to}${flight.piece}`}
+            from={flight.from}
+            to={flight.to}
+            piece={flight.piece}
+            duration={flight.duration}
+            flipped={flipped}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -216,23 +286,7 @@ export function pieceAtFen(fen, square) {
   return board[parsed.rank][parsed.file];
 }
 
-function parseSquare(square) {
-  if (!square || square.length !== 2) return null;
-  const file = FILES.indexOf(square[0]);
-  const rank = Number(square[1]);
-  if (file < 0 || Number.isNaN(rank) || rank < 0 || rank > 9) return null;
-  return { file, rank };
-}
-
-export function applyUciToFen(fen, uci) {
-  const parts = (fen || XIANGQI_START_FEN).split(" ");
-  const board = parseBoard(fen);
-  const from = parseSquare(uci.slice(0, 2));
-  const to = parseSquare(uci.slice(2, 4));
-  if (!from || !to) return fen;
-  const piece = board[from.rank][from.file];
-  board[from.rank][from.file] = null;
-  board[to.rank][to.file] = piece;
+function placementFromBoard(board) {
   const ranks = [];
   for (let fenIndex = 0; fenIndex < 10; fenIndex += 1) {
     const rank = 9 - fenIndex;
@@ -253,8 +307,29 @@ export function applyUciToFen(fen, uci) {
     if (empty) row += String(empty);
     ranks.push(row);
   }
+  return ranks.join("/");
+}
+
+export function clearSquareFen(fen, square) {
+  const parts = (fen || XIANGQI_START_FEN).split(" ");
+  const parsed = parseSquare(square);
+  if (!parsed) return fen;
+  const board = parseBoard(fen);
+  board[parsed.rank][parsed.file] = null;
+  return `${placementFromBoard(board)} ${parts.slice(1).join(" ")}`.trim();
+}
+
+export function applyUciToFen(fen, uci) {
+  const parts = (fen || XIANGQI_START_FEN).split(" ");
+  const board = parseBoard(fen);
+  const from = parseSquare(uci.slice(0, 2));
+  const to = parseSquare(uci.slice(2, 4));
+  if (!from || !to) return fen;
+  const piece = board[from.rank][from.file];
+  board[from.rank][from.file] = null;
+  board[to.rank][to.file] = piece;
   const turn = parts[1] === "w" ? "b" : "w";
   const half = parts[4] || "0";
   const full = parts[5] || "1";
-  return `${ranks.join("/")} ${turn} - - ${half} ${full}`;
+  return `${placementFromBoard(board)} ${turn} - - ${half} ${full}`;
 }

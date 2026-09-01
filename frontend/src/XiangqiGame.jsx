@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import XiangqiBoard, {
   XIANGQI_START_FEN,
   applyUciToFen,
+  clearSquareFen,
   legalTargetsFor,
   pieceAtFen,
 } from "./XiangqiBoard.jsx";
@@ -22,7 +23,7 @@ const API_BASE_URL =
 const XIANGQI_URL = `${API_BASE_URL}/api/v1/xiangqi/play`;
 const FETCH_TIMEOUT_MS = 30000;
 const MIN_THINKING_MS = 1400;
-const AI_DROP_MS = 480;
+const SLIDE_MS = 420;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,7 +108,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
   const [overOpen, setOverOpen] = useState(false);
   const [difficulty, setDifficulty] = useState("easy");
   const [lastMove, setLastMove] = useState(null);
-  const [animating, setAnimating] = useState(null);
+  const [flight, setFlight] = useState(null);
   const requestGeneration = useRef(0);
 
   useEffect(() => {
@@ -140,7 +141,26 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
     [selected, legalUci],
   );
   const history = useMemo(() => pairMoves(sans), [sans]);
-  const busy = phase !== "idle" || gameOver;
+  const busy = phase !== "idle" || gameOver || Boolean(flight);
+
+  async function slidePiece(from, to, sourceFen, duration = SLIDE_MS) {
+    const piece = pieceAtFen(sourceFen, from);
+    if (!piece || !from || !to || reduceMotion()) {
+      setFen(applyUciToFen(sourceFen, `${from}${to}`));
+      setLastMove({ from, to });
+      return;
+    }
+    setFlight({ from, to, piece, duration });
+    setFen(clearSquareFen(sourceFen, from));
+    await sleep(duration);
+    setFen(applyUciToFen(sourceFen, `${from}${to}`));
+    setFlight(null);
+    setLastMove({ from, to });
+  }
+
+  function reduceMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
 
   async function askEngine(currentFen, uci, restoreOnFail = null) {
     const generation = ++requestGeneration.current;
@@ -166,6 +186,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
         setErrorMessage(data.error_message || "请求失败。");
         setFen(data.fen || currentFen);
         setLegalUci(data.legal_uci || []);
+        setFlight(null);
         if (data.user_san) {
           setSans((prev) => [...prev, data.user_san]);
         }
@@ -180,19 +201,14 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
       });
 
       if (data.engine_uci) {
-        setAnimating({
-          from: data.engine_uci.slice(0, 2),
-          to: data.engine_uci.slice(2),
-        });
-        setLastMove({
-          from: data.engine_uci.slice(0, 2),
-          to: data.engine_uci.slice(2),
-        });
+        const from = data.engine_uci.slice(0, 2);
+        const to = data.engine_uci.slice(2, 4);
+        const afterUser = uci ? applyUciToFen(currentFen, uci) : currentFen;
+        setPhase("engine-move");
+        await slidePiece(from, to, afterUser, SLIDE_MS);
+        if (generation !== requestGeneration.current) return;
         setFen(data.fen);
         setLegalUci(data.legal_uci || []);
-        await sleep(AI_DROP_MS);
-        if (generation !== requestGeneration.current) return;
-        setAnimating(null);
       } else {
         setFen(data.fen);
         setLegalUci(data.legal_uci || []);
@@ -218,7 +234,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
     }
   }
 
-  function handleSquareClick(square) {
+  async function handleSquareClick(square) {
     if (busy) return;
     const redToMove = (fen.split(" ")[1] || "w") === "w";
     if (seat === "red" ? !redToMove : redToMove) return;
@@ -229,11 +245,11 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
         legalUci,
         lastMove,
       };
+      const originFen = fen;
       setSelected("");
-      setLastMove({ from: selected, to: square });
-      setFen(applyUciToFen(fen, uci));
-      setLegalUci([]);
-      askEngine(fen, uci, restoreOnFail);
+      setPhase("user-move");
+      await slidePiece(selected, square, originFen, SLIDE_MS);
+      askEngine(originFen, uci, restoreOnFail);
       return;
     }
     const piece = pieceAtFen(fen, square);
@@ -262,10 +278,15 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
     setResult("");
     setOverOpen(false);
     setLastMove(null);
-    setAnimating(null);
+    setFlight(null);
     setPhase("thinking");
     postXiangqi(XIANGQI_START_FEN, "", difficulty, nextSeat)
-      .then((data) => {
+      .then(async (data) => {
+        if (data.engine_uci) {
+          const from = data.engine_uci.slice(0, 2);
+          const to = data.engine_uci.slice(2, 4);
+          await slidePiece(from, to, XIANGQI_START_FEN, SLIDE_MS);
+        }
         setFen(data.fen || XIANGQI_START_FEN);
         setLegalUci(data.legal_uci || []);
         if (data.engine_san) setSans([data.engine_san]);
@@ -291,6 +312,8 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
     ? resultCopy(result, seat)
     : phase === "thinking"
       ? "Pikafish 正在想…"
+      : phase === "user-move" || phase === "engine-move"
+        ? "棋子移动中…"
       : `轮到你走。点选${seat === "black" ? "黑" : "红"}子，再点合法落点。`;
 
   return (
@@ -302,7 +325,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
           selected={selected}
           legalTargets={targets}
           lastMove={lastMove}
-          animating={animating}
+          flight={flight}
           disabled={busy}
           flipped={seat === "black"}
           onSquareClick={handleSquareClick}
@@ -399,6 +422,7 @@ export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }
       <XiangqiOnline
         initialCode={lobby.roomCode}
         createSeat={lobby.seat}
+        clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
         onHome={() => {
           lobby.leaveRoom();
@@ -433,6 +457,8 @@ export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }
       onJoinDraft={lobby.setJoinDraft}
       onJoin={lobby.joinRoom}
       errorMessage={lobby.lobbyError}
+      clockEnabled={lobby.clockEnabled}
+      onClockEnabled={lobby.setClockEnabled}
     />
   );
 }

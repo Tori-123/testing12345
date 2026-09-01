@@ -30,6 +30,7 @@ class BoardRules(Protocol):
 
 class CreateRoomRequest(BaseModel):
     seat: str = ""
+    clock: bool = True
 
 
 class JoinRoomRequest(BaseModel):
@@ -66,7 +67,14 @@ def _new_code() -> str:
 
 
 class BoardRoom:
-    def __init__(self, code: str, creator_seat: str, token: str, rules: BoardRules):
+    def __init__(
+        self,
+        code: str,
+        creator_seat: str,
+        token: str,
+        rules: BoardRules,
+        clock_limit_ms: int = CLOCK_LIMIT_MS,
+    ):
         self.code = code
         self.rules = rules
         self.tokens = {rules.first: None, rules.second: None}
@@ -84,6 +92,7 @@ class BoardRoom:
         self.turn_started = time.monotonic()
         self.clock_gen = 0
         self.clock_task: asyncio.Task | None = None
+        self.clock_limit_ms = clock_limit_ms if clock_limit_ms > 0 else 0
         self.restart = {rules.first: False, rules.second: False}
 
     def both_ready(self) -> bool:
@@ -111,10 +120,10 @@ class BoardRoom:
         self.restart = {self.rules.first: False, self.rules.second: False}
 
     def clock_ms(self) -> int:
-        if self.ended_by or not self.both_ready():
-            return CLOCK_LIMIT_MS
+        if self.clock_limit_ms <= 0 or self.ended_by or not self.both_ready():
+            return self.clock_limit_ms
         elapsed = int((time.monotonic() - self.turn_started) * 1000)
-        return max(0, CLOCK_LIMIT_MS - elapsed)
+        return max(0, self.clock_limit_ms - elapsed)
 
     def snapshot(self) -> dict:
         over, result, end_reason = self.rules.outcome(self.fen)
@@ -149,7 +158,7 @@ class BoardRoom:
             "result": result,
             "end_reason": end_reason,
             "clock_ms": 0 if over else self.clock_ms(),
-            "clock_limit_ms": CLOCK_LIMIT_MS,
+            "clock_limit_ms": self.clock_limit_ms,
             **ready,
         }
 
@@ -170,15 +179,16 @@ class RoomStore:
         for code in expired:
             self._rooms.pop(code, None)
 
-    async def create(self, seat: str) -> tuple[BoardRoom, str, str]:
+    async def create(self, seat: str, clock: bool = True) -> tuple[BoardRoom, str, str]:
         creator = seat if seat in {self.rules.first, self.rules.second} else self.rules.first
+        clock_limit_ms = CLOCK_LIMIT_MS if clock else 0
         async with self._lock:
             self._purge()
             for _ in range(20):
                 code = _new_code()
                 if code not in self._rooms:
                     token = secrets.token_urlsafe(16)
-                    room = BoardRoom(code, creator, token, self.rules)
+                    room = BoardRoom(code, creator, token, self.rules, clock_limit_ms)
                     self._rooms[code] = room
                     return room, token, creator
             raise RuntimeError("无法分配房间码")
@@ -255,7 +265,7 @@ def build_board_room_router(rules: BoardRules) -> APIRouter:
 
     async def _arm_clock(room: BoardRoom) -> None:
         _cancel_clock(room)
-        if room.ended_by or not room.both_ready():
+        if room.ended_by or not room.both_ready() or room.clock_limit_ms <= 0:
             return
         over, _result, _reason = rules.outcome(room.fen)
         if over:
@@ -266,7 +276,7 @@ def build_board_room_router(rules: BoardRules) -> APIRouter:
 
         async def _timeout() -> None:
             try:
-                await asyncio.sleep(CLOCK_LIMIT_MS / 1000)
+                await asyncio.sleep(room.clock_limit_ms / 1000)
             except asyncio.CancelledError:
                 return
             async with store._lock:
@@ -332,7 +342,9 @@ def build_board_room_router(rules: BoardRules) -> APIRouter:
     @router.post(prefix, response_model=BoardRoomResponse)
     async def create_room(payload: CreateRoomRequest = CreateRoomRequest()) -> BoardRoomResponse:
         try:
-            room, token, creator_seat = await store.create(payload.seat)
+            room, token, creator_seat = await store.create(
+                payload.seat, clock=payload.clock
+            )
         except RuntimeError as exc:
             return BoardRoomResponse(status="error", error_message=str(exc))
         return _response(room, seat=creator_seat, token=token)

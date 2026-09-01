@@ -79,6 +79,10 @@ export default function BoardOnline({
   onHome,
   onRoomCode,
   renderBoard,
+  clockEnabled = true,
+  slideMs = 420,
+  readPiece,
+  clearSquare,
 }) {
   const [code, setCode] = useState("");
   const [seat, setSeat] = useState("");
@@ -102,12 +106,44 @@ export default function BoardOnline({
   const [displayClockMs, setDisplayClockMs] = useState(60_000);
   const [restartFirst, setRestartFirst] = useState(false);
   const [restartSecond, setRestartSecond] = useState(false);
+  const [flight, setFlight] = useState(null);
   const socketRef = useRef(null);
   const seatRef = useRef("");
   const pendingRef = useRef(null);
   const applyStateRef = useRef(null);
   const restoreRef = useRef(null);
+  const fenRef = useRef(startFen);
+  const sansRef = useRef([]);
+  const flightTimerRef = useRef(null);
   const clockSyncRef = useRef({ remain: 60_000, at: 0, running: false });
+
+  function stopFlight() {
+    if (flightTimerRef.current) {
+      window.clearTimeout(flightTimerRef.current);
+      flightTimerRef.current = null;
+    }
+    setFlight(null);
+  }
+
+  function reduceMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function startFlight(from, to, sourceFen, landFen, duration) {
+    const piece = readPiece?.(sourceFen, from);
+    if (!piece || !clearSquare || !duration || reduceMotion()) {
+      setFen(landFen);
+      return;
+    }
+    stopFlight();
+    setFlight({ from, to, piece, duration });
+    setFen(clearSquare(sourceFen, from));
+    flightTimerRef.current = window.setTimeout(() => {
+      setFen(landFen);
+      setFlight(null);
+      flightTimerRef.current = null;
+    }, duration);
+  }
 
   function readyFrom(data, which) {
     if (which === firstSeat) {
@@ -130,8 +166,10 @@ export default function BoardOnline({
     const restore = restoreRef.current;
     pendingRef.current = null;
     restoreRef.current = null;
+    stopFlight();
     if (!restore) return;
     setFen(restore.fen);
+    fenRef.current = restore.fen;
     setLegalUci(restore.legalUci);
     setFromSquare(restore.fromSquare);
     setToSquare(restore.toSquare);
@@ -159,10 +197,22 @@ export default function BoardOnline({
       pendingRef.current = null;
       restoreRef.current = null;
     }
+    const prevFen = fenRef.current;
+    const prevSans = sansRef.current;
+    const remoteMove =
+      !pendingRef.current &&
+      Array.isArray(data.sans) &&
+      data.sans.length > prevSans.length &&
+      data.from_square &&
+      data.to_square &&
+      data.fen &&
+      data.fen !== prevFen;
     if (data.code) setCode(data.code);
-    if (data.fen) setFen(data.fen);
     if (Array.isArray(data.legal_uci)) setLegalUci(data.legal_uci);
-    if (Array.isArray(data.sans)) setSans(data.sans);
+    if (Array.isArray(data.sans)) {
+      setSans(data.sans);
+      sansRef.current = data.sans;
+    }
     setFromSquare(data.from_square || "");
     setToSquare(data.to_square || "");
     if (data.turn !== undefined) setTurn(data.turn || "");
@@ -173,6 +223,8 @@ export default function BoardOnline({
     setGameOver(Boolean(data.game_over));
     setResult(data.result || "");
     setEndReason(data.end_reason || "");
+    const limit =
+      typeof data.clock_limit_ms === "number" ? data.clock_limit_ms : clockLimitMs;
     if (typeof data.clock_limit_ms === "number") {
       setClockLimitMs(data.clock_limit_ms);
     }
@@ -184,8 +236,23 @@ export default function BoardOnline({
         running:
           readyFrom(data, firstSeat) &&
           readyFrom(data, secondSeat) &&
-          !data.game_over,
+          !data.game_over &&
+          limit > 0,
       };
+    }
+    if (data.fen) {
+      if (remoteMove) {
+        startFlight(
+          data.from_square,
+          data.to_square,
+          prevFen,
+          data.fen,
+          slideMs,
+        );
+      } else if (!flightTimerRef.current) {
+        setFen(data.fen);
+      }
+      fenRef.current = data.fen;
     }
     if (data.error_message) setErrorMessage(data.error_message);
     else setErrorMessage("");
@@ -221,6 +288,7 @@ export default function BoardOnline({
         } else {
           data = await postJson(`/api/v1/${game}/rooms`, {
             seat: createSeat || firstSeat,
+            clock: clockEnabled !== false,
           });
         }
         if (cancelled) return;
@@ -265,6 +333,7 @@ export default function BoardOnline({
 
     return () => {
       cancelled = true;
+      stopFlight();
       socketRef.current?.close();
       socketRef.current = null;
     };
@@ -314,17 +383,20 @@ export default function BoardOnline({
       sans,
     };
     pendingRef.current = { uci, afterCount: sans.length + 1 };
-    setFen(nextFen);
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    startFlight(from, to, fen, nextFen, slideMs);
+    fenRef.current = nextFen;
     setLegalUci([]);
-    setFromSquare(uci.slice(0, 2));
-    setToSquare(uci.slice(2, 4));
+    setFromSquare(from);
+    setToSquare(to);
     setTurn(seat === firstSeat ? secondSeat : firstSeat);
     clockSyncRef.current = {
       remain: clockLimitMs,
       at: performance.now(),
-      running: true,
+      running: clockLimitMs > 0,
     };
-    setDisplayClockMs(clockLimitMs);
+    if (clockLimitMs > 0) setDisplayClockMs(clockLimitMs);
     setErrorMessage("");
     send({ type: "move", uci });
   }
@@ -386,6 +458,7 @@ export default function BoardOnline({
         toSquare,
         myTurn,
         seat,
+        flight,
         onMove: sendMove,
       })}
       panel={
@@ -394,7 +467,7 @@ export default function BoardOnline({
           <div className="mt-3 text-sm text-neutral-500">
             {metaFor(seat, bothReady, clockLimitMs)}
           </div>
-          {bothReady ? (
+          {bothReady && clockLimitMs > 0 ? (
             <div className="mt-3 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
               <span className="text-xs font-semibold tracking-wide text-neutral-500">
                 {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}

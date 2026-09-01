@@ -438,6 +438,7 @@ export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) 
       <ChessOnline
         initialCode={lobby.roomCode}
         createSeat={lobby.seat}
+        clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
         onHome={() => {
           lobby.leaveRoom();
@@ -472,6 +473,8 @@ export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) 
       onJoinDraft={lobby.setJoinDraft}
       onJoin={lobby.joinRoom}
       errorMessage={lobby.lobbyError}
+      clockEnabled={lobby.clockEnabled}
+      onClockEnabled={lobby.setClockEnabled}
     />
   );
 }

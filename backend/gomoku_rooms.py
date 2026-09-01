@@ -23,6 +23,7 @@ class GomokuRoomMove(BaseModel):
 
 class CreateRoomRequest(BaseModel):
     seat: Literal["black", "white"] = "black"
+    clock: bool = True
 
 
 class JoinRoomRequest(BaseModel):
@@ -75,7 +76,13 @@ def _new_code() -> str:
 
 
 class Room:
-    def __init__(self, code: str, creator_seat: str, token: str):
+    def __init__(
+        self,
+        code: str,
+        creator_seat: str,
+        token: str,
+        clock_limit_ms: int = CLOCK_LIMIT_MS,
+    ):
         self.code = code
         self.black_token = token if creator_seat == "black" else None
         self.white_token = token if creator_seat == "white" else None
@@ -87,6 +94,7 @@ class Room:
         self.turn_started = time.monotonic()
         self.clock_gen = 0
         self.clock_task: asyncio.Task | None = None
+        self.clock_limit_ms = clock_limit_ms if clock_limit_ms > 0 else 0
         self.restart_black = False
         self.restart_white = False
 
@@ -112,10 +120,10 @@ class Room:
         self.restart_white = False
 
     def clock_ms(self) -> int:
-        if self.ended_by or not self.both_ready():
-            return CLOCK_LIMIT_MS
+        if self.clock_limit_ms <= 0 or self.ended_by or not self.both_ready():
+            return self.clock_limit_ms
         elapsed = int((time.monotonic() - self.turn_started) * 1000)
-        return max(0, CLOCK_LIMIT_MS - elapsed)
+        return max(0, self.clock_limit_ms - elapsed)
 
     def snapshot(self) -> dict:
         winner = _winner(self.moves)
@@ -150,7 +158,7 @@ class Room:
             "result": result,
             "end_reason": end_reason,
             "clock_ms": 0 if game_over else self.clock_ms(),
-            "clock_limit_ms": CLOCK_LIMIT_MS,
+            "clock_limit_ms": self.clock_limit_ms,
             "restart_black": self.restart_black,
             "restart_white": self.restart_white,
         }
@@ -171,15 +179,16 @@ class RoomStore:
         for code in expired:
             self._rooms.pop(code, None)
 
-    async def create(self, seat: str = "black") -> tuple[Room, str, str]:
+    async def create(self, seat: str = "black", clock: bool = True) -> tuple[Room, str, str]:
         creator_seat = seat if seat in {"black", "white"} else "black"
+        clock_limit_ms = CLOCK_LIMIT_MS if clock else 0
         async with self._lock:
             self._purge()
             for _ in range(20):
                 code = _new_code()
                 if code not in self._rooms:
                     token = secrets.token_urlsafe(16)
-                    room = Room(code, creator_seat, token)
+                    room = Room(code, creator_seat, token, clock_limit_ms)
                     self._rooms[code] = room
                     return room, token, creator_seat
             raise RuntimeError("无法分配房间码")
@@ -252,7 +261,7 @@ def _cancel_clock(room: Room) -> None:
 
 async def _arm_clock(room: Room) -> None:
     _cancel_clock(room)
-    if room.ended_by or not room.both_ready():
+    if room.ended_by or not room.both_ready() or room.clock_limit_ms <= 0:
         return
     if _winner(room.moves) or len(room.moves) == BOARD_SIZE * BOARD_SIZE:
         return
@@ -262,7 +271,7 @@ async def _arm_clock(room: Room) -> None:
 
     async def _timeout() -> None:
         try:
-            await asyncio.sleep(CLOCK_LIMIT_MS / 1000)
+            await asyncio.sleep(room.clock_limit_ms / 1000)
         except asyncio.CancelledError:
             return
         async with store._lock:
@@ -291,7 +300,7 @@ async def _broadcast(room: Room, extra: dict | None = None) -> None:
 async def create_room(payload: CreateRoomRequest = CreateRoomRequest()) -> RoomResponse:
     seat = payload.seat
     try:
-        room, token, creator_seat = await store.create(seat)
+        room, token, creator_seat = await store.create(seat, clock=payload.clock)
     except RuntimeError as exc:
         return RoomResponse(status="error", error_message=str(exc))
     return _response(room, seat=creator_seat, token=token)
