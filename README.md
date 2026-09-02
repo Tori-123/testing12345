@@ -1,5 +1,7 @@
 # PlyHan
 
+[中文](#plyhan) · [English](#plyhan-english)
+
 单屏四棋种：国际象棋使用 chess-api.com，五子棋使用本机 Rapfi，中国象棋使用本机 Pikafish，跳棋使用本机英式规则与 alpha-beta。无账号、无数据库、刷新即清空。
 
 ## 功能
@@ -126,3 +128,134 @@ curl http://127.0.0.1:8000/health
 2. 确认 `backend/Pikafish-engine/` 内有当前平台二进制和 `pikafish.nnue`。
 3. 检查 `.env` 中 `PIKAFISH_BINARY` / `PIKAFISH_EVAL_FILE` 是否为绝对路径。
 4. 重启后端后再试；首次 `isready` 会加载 NNUE，可能稍慢。
+
+---
+
+# PlyHan (English)
+
+One screen, four games: chess via chess-api.com, gomoku via local Rapfi, xiangqi via local Pikafish, and English draughts via an in-process alpha-beta search. No accounts, no database. Refresh clears everything.
+
+## Features
+
+- The home screen offers Chess, Gomoku, Xiangqi, or Draughts. The first three support vs-computer and link-based multiplayer; draughts is vs-computer only for now.
+- Chess vs computer: the backend checks the rules and calls chess-api.com. Default difficulty is Easy, with Beginner, Easy, Normal, and Hard. Online play does not call the API. The room creator picks White or Black.
+- Gomoku: 15×15 freestyle. Vs computer uses Rapfi. Online play does not call the engine. The room creator picks Black or White.
+- Xiangqi vs computer: local Pikafish. Online play does not call the engine. The room creator picks Red or Black.
+- Draughts: 8×8 English/American rules, local search. Pick Black/White and difficulty, then start. Difficulty cannot be changed after the game starts.
+- Vs-computer mode has move history, restart, engine-failure retry, and a win/loss prompt. Online rooms have a room code, per-move clock, resign, and a rematch that only resets when both players agree.
+
+## Setup
+
+```bash
+cp .env.example .env
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+npm --prefix frontend install
+```
+
+Install the official Rapfi engine (macOS Apple Silicon and Linux x86_64):
+
+```bash
+backend/.venv/bin/python backend/setup_rapfi.py
+```
+
+Install the official Pikafish engine and NNUE weights (same platforms):
+
+```bash
+backend/.venv/bin/python backend/setup_pikafish.py
+```
+
+If the engines are already on the server, set absolute paths in the root `.env`:
+
+```dotenv
+RAPFI_BINARY=/absolute/path/to/pbrain-rapfi
+RAPFI_BOARD_SIZE=15
+RAPFI_TIMEOUT_TURN=1500
+
+PIKAFISH_BINARY=/absolute/path/to/pikafish-apple-silicon
+PIKAFISH_EVAL_FILE=/absolute/path/to/pikafish.nnue
+PIKAFISH_MOVETIME_MS=400
+```
+
+On a Linux VPS, run the same Python install commands. Docker is not required. The process user must be allowed to execute the engine binaries.
+
+If frontend and backend are on different hosts or ports:
+
+```dotenv
+# repo-root .env
+CORS_ORIGINS=https://your-frontend.example
+
+# frontend/.env
+VITE_API_BASE_URL=https://your-backend.example
+```
+
+## Run
+
+Backend:
+
+```bash
+backend/.venv/bin/uvicorn main:app \
+  --app-dir backend \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+Frontend:
+
+```bash
+npm --prefix frontend run dev -- --host 0.0.0.0
+```
+
+Open `http://127.0.0.1:5173`.
+
+## Online play
+
+Pick a game on the home screen first. Inside a game you can choose vs computer or create a room.
+
+1. Pick your color, then click Create Room, and copy the room code or link.
+   - Gomoku: `/?game=gomoku&r=ROOMCODE`
+   - Chess: `/?game=chess&r=ROOMCODE`
+   - Xiangqi: `/?game=xiangqi&r=ROOMCODE`
+2. The other player opens the link, or enters the room code on that game’s page, and takes the remaining color.
+3. Moves sync over WebSocket. The engine is not used. After the game, Rematch is only a request; the board clears when both players agree.
+
+You can test locally with two browser windows (or one normal window and one private window). Rooms live in backend memory and expire after about two hours with no moves. Refreshing the same tab reseats you.
+
+On a single cloud host, run one process:
+
+```bash
+backend/.venv/bin/uvicorn main:app \
+  --app-dir backend \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers 1
+```
+
+When building the frontend, set `VITE_API_BASE_URL` to the public backend URL. If Nginx proxies `/api/`, enable WebSocket upgrades:
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
+
+Do not use multiple uvicorn workers, or room state will not match across processes.
+
+## Checks
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+If gomoku says the engine is unavailable:
+
+1. Run `backend/.venv/bin/python backend/setup_rapfi.py`.
+2. Check that `RAPFI_BINARY` in `.env` is an absolute path.
+3. Confirm the binary is executable, then restart the backend.
+
+If xiangqi says the engine is unavailable:
+
+1. Run `backend/.venv/bin/python backend/setup_pikafish.py`.
+2. Confirm `backend/Pikafish-engine/` has the current-platform binary and `pikafish.nnue`.
+3. Check that `PIKAFISH_BINARY` / `PIKAFISH_EVAL_FILE` in `.env` are absolute paths.
+4. Restart the backend and try again. The first `isready` loads the NNUE and can be slow.
