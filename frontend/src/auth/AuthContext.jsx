@@ -3,6 +3,27 @@ import { supabase } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
 
+// 用用户名作为底层内部邮箱（Supabase 认证基于邮箱）：
+// username -> username@plyhan.app。真实邮箱不对外，只需要唯一的内部邮箱。
+const EMAIL_DOMAIN = "plyhan.app";
+
+export function normalizeUsername(raw) {
+  return (raw || "").trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+export function usernameEmail(username) {
+  return `${normalizeUsername(username)}@${EMAIL_DOMAIN}`;
+}
+
+// 从 user 对象里取显示用的用户名
+export function usernameOf(user) {
+  if (!user) return "";
+  const meta = user.user_metadata || {};
+  if (meta.username) return meta.username;
+  const email = user.email || "";
+  return email.split("@")[0];
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
@@ -28,20 +49,23 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signUp(email, password) {
+  async function signUp(username, password) {
+    const normalized = normalizeUsername(username);
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: usernameEmail(normalized),
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/login`,
+        data: { username: normalized },
       },
     });
-    return { data, error };
+    return { data, error, username: normalized };
   }
 
-  async function signIn(email, password) {
+  async function signIn(username, password) {
+    const normalized = normalizeUsername(username);
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: usernameEmail(normalized),
       password,
     });
     return { data, error };
@@ -54,7 +78,15 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user, loading, signUp, signIn, signOut }}
+      value={{
+        session,
+        user,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        usernameOf,
+      }}
     >
       {children}
     </AuthContext.Provider>

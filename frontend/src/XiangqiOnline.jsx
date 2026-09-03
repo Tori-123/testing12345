@@ -83,17 +83,23 @@ function XiangqiOnlineBoard({
 
 export default function XiangqiOnline({
   initialCode,
+  initialToken = "",
+  initialSeat = "",
   createSeat = "red",
   clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
+  onFinish,
 }) {
   return (
     <BoardOnline
       game="xiangqi"
       initialCode={initialCode}
+      initialToken={initialToken}
+      initialSeat={initialSeat}
       createSeat={createSeat}
+      onGameOver={(result, seat) => onFinish?.({ seat, result })}
       clockEnabled={clockEnabled}
       firstSeat="red"
       secondSeat="black"

@@ -1,11 +1,23 @@
 import { useState } from "react";
 
-export function useLobbyMode({ initialRoomCode = "", onRoomCode, defaultSeat }) {
-  const [mode, setMode] = useState(initialRoomCode ? "online" : "");
+export function useLobbyMode({
+  initialRoomCode = "",
+  initialMode = "",
+  initialSeat,
+  onRoomCode,
+  defaultSeat,
+}) {
+  const [mode, setMode] = useState(
+    initialMode
+      ? initialMode
+      : initialRoomCode
+        ? "online"
+        : "",
+  );
   const [roomCode, setRoomCode] = useState((initialRoomCode || "").toUpperCase());
   const [joinDraft, setJoinDraft] = useState((initialRoomCode || "").toUpperCase());
   const [lobbyError, setLobbyError] = useState("");
-  const [seat, setSeat] = useState(defaultSeat);
+  const [seat, setSeat] = useState(initialSeat || defaultSeat);
   const [clockEnabled, setClockEnabled] = useState(true);
 
   function leaveRoom() {

@@ -108,17 +108,23 @@ function DraughtsOnlineBoard({
 
 export default function DraughtsOnline({
   initialCode,
+  initialToken = "",
+  initialSeat = "",
   createSeat = "black",
   clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
+  onFinish,
 }) {
   return (
     <BoardOnline
       game="draughts"
       initialCode={initialCode}
+      initialToken={initialToken}
+      initialSeat={initialSeat}
       createSeat={createSeat}
+      onGameOver={(result, seat) => onFinish?.({ seat, result })}
       clockEnabled={clockEnabled}
       firstSeat="black"
       secondSeat="white"

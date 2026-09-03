@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DraughtsBoard, {
   START_FEN,
   applyUciToFen,
@@ -91,14 +91,14 @@ async function postPlay(fen, uci = "", difficulty = "easy", side = "black") {
   }
 }
 
-function DraughtsAiGame({ onBack, initialSeat = "black" }) {
+function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "", onFinish }) {
   const [seat, setSeat] = useState(initialSeat === "white" ? "white" : "black");
   const [started, setStarted] = useState(false);
   const [fen, setFen] = useState(START_FEN);
   const [legalUci, setLegalUci] = useState([]);
   const [turn, setTurn] = useState("black");
   const [phase, setPhase] = useState("idle");
-  const [difficulty, setDifficulty] = useState("easy");
+  const [difficulty, setDifficulty] = useState(initialDifficulty || "easy");
   const [errorMessage, setErrorMessage] = useState("");
   const [gameOver, setGameOver] = useState(false);
   const [result, setResult] = useState("");
@@ -113,6 +113,10 @@ function DraughtsAiGame({ onBack, initialSeat = "black" }) {
   const [fadingSquares, setFadingSquares] = useState([]);
   const requestGeneration = useRef(0);
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (gameOver) onFinish?.({ seat, result });
+  }, [gameOver, onFinish, seat, result]);
 
   const waitingForEngine = started && turn !== seat && !gameOver && phase === "idle";
   const busy =
@@ -417,9 +421,16 @@ export default function DraughtsGame({
   onBack,
   initialRoomCode = "",
   onRoomCode,
+  initialMode = "",
+  initialDifficulty = "",
+  initialToken = "",
+  initialSeat = "",
+  onFinish,
 }) {
   const lobby = useLobbyMode({
     initialRoomCode,
+    initialMode,
+    initialSeat,
     onRoomCode,
     defaultSeat: "black",
   });
@@ -427,9 +438,11 @@ export default function DraughtsGame({
   if (lobby.mode === "ai") {
     return (
       <DraughtsAiGame
-        onBack={() => lobby.setMode("")}
+        onBack={() => (onFinish ? onBack() : lobby.setMode(""))}
         onHome={onBack}
         initialSeat={lobby.seat}
+        initialDifficulty={initialDifficulty}
+        onFinish={onFinish}
       />
     );
   }
@@ -437,6 +450,8 @@ export default function DraughtsGame({
     return (
       <DraughtsOnline
         initialCode={lobby.roomCode}
+        initialToken={initialToken}
+        initialSeat={initialSeat}
         createSeat={lobby.seat}
         clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
@@ -445,6 +460,7 @@ export default function DraughtsGame({
           onBack();
         }}
         onRoomCode={onRoomCode}
+        onFinish={onFinish}
       />
     );
   }

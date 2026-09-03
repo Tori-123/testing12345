@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GomokuBoard from "./GomokuBoard.jsx";
 import GomokuOnline from "./GomokuOnline.jsx";
 import GameLobby, { useLobbyMode } from "./GameLobby.jsx";
@@ -88,7 +88,13 @@ function GomokuGameOver({ result, seat, onRestart, onDismiss, onBack, onHome }) 
   );
 }
 
-function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
+function GomokuAiGame({
+  onBack,
+  onHome,
+  initialSeat = "black",
+  initialDifficulty = "",
+  onFinish,
+}) {
   const [seat, setSeat] = useState(initialSeat === "white" ? "white" : "black");
   const [started, setStarted] = useState(false);
   const [moves, setMoves] = useState([]);
@@ -97,9 +103,13 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
   const [gameOver, setGameOver] = useState(false);
   const [result, setResult] = useState("");
   const [overOpen, setOverOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState("easy");
+  const [difficulty, setDifficulty] = useState(initialDifficulty || "easy");
   const requestGeneration = useRef(0);
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (gameOver) onFinish?.({ seat, result });
+  }, [gameOver, onFinish, seat, result]);
 
   const turn = moves.length % 2 === 0 ? "black" : "white";
   const waitingForEngine = started && turn !== seat && !gameOver;
@@ -294,9 +304,20 @@ function GomokuAiGame({ onBack, onHome, initialSeat = "black" }) {
   );
 }
 
-export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode }) {
+export default function GomokuGame({
+  onBack,
+  initialRoomCode = "",
+  onRoomCode,
+  initialMode = "",
+  initialDifficulty = "",
+  initialToken = "",
+  initialSeat = "",
+  onFinish,
+}) {
   const lobby = useLobbyMode({
     initialRoomCode,
+    initialMode,
+    initialSeat,
     onRoomCode,
     defaultSeat: "black",
   });
@@ -304,9 +325,11 @@ export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode })
   if (lobby.mode === "ai") {
     return (
       <GomokuAiGame
-        onBack={() => lobby.setMode("")}
+        onBack={() => (onFinish ? onBack() : lobby.setMode(""))}
         onHome={onBack}
         initialSeat={lobby.seat}
+        initialDifficulty={initialDifficulty}
+        onFinish={onFinish}
       />
     );
   }
@@ -314,6 +337,8 @@ export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode })
     return (
       <GomokuOnline
         initialCode={lobby.roomCode}
+        initialToken={initialToken}
+        initialSeat={initialSeat}
         createSeat={lobby.seat}
         clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
@@ -322,6 +347,7 @@ export default function GomokuGame({ onBack, initialRoomCode = "", onRoomCode })
           onBack();
         }}
         onRoomCode={onRoomCode}
+        onFinish={onFinish}
       />
     );
   }

@@ -95,7 +95,7 @@ function XiangqiGameOver({ result, seat, onRestart, onDismiss, onBack, onHome })
   );
 }
 
-function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
+function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty = "", onFinish }) {
   const [seat, setSeat] = useState(initialSeat === "black" ? "black" : "red");
   const [fen, setFen] = useState(XIANGQI_START_FEN);
   const [legalUci, setLegalUci] = useState([]);
@@ -106,10 +106,14 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
   const [gameOver, setGameOver] = useState(false);
   const [result, setResult] = useState("");
   const [overOpen, setOverOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState("easy");
+  const [difficulty, setDifficulty] = useState(initialDifficulty || "easy");
   const [lastMove, setLastMove] = useState(null);
   const [flight, setFlight] = useState(null);
   const requestGeneration = useRef(0);
+
+  useEffect(() => {
+    if (gameOver) onFinish?.({ seat, result });
+  }, [gameOver, onFinish, seat, result]);
 
   useEffect(() => {
     let cancelled = false;
@@ -401,9 +405,20 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red" }) {
   );
 }
 
-export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }) {
+export default function XiangqiGame({
+  onBack,
+  initialRoomCode = "",
+  onRoomCode,
+  initialMode = "",
+  initialDifficulty = "",
+  initialToken = "",
+  initialSeat = "",
+  onFinish,
+}) {
   const lobby = useLobbyMode({
     initialRoomCode,
+    initialMode,
+    initialSeat,
     onRoomCode,
     defaultSeat: "red",
   });
@@ -411,9 +426,11 @@ export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }
   if (lobby.mode === "ai") {
     return (
       <XiangqiAiGame
-        onBack={() => lobby.setMode("")}
+        onBack={() => (onFinish ? onBack() : lobby.setMode(""))}
         onHome={onBack}
         initialSeat={lobby.seat}
+        initialDifficulty={initialDifficulty}
+        onFinish={onFinish}
       />
     );
   }
@@ -421,6 +438,8 @@ export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }
     return (
       <XiangqiOnline
         initialCode={lobby.roomCode}
+        initialToken={initialToken}
+        initialSeat={initialSeat}
         createSeat={lobby.seat}
         clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
@@ -429,6 +448,7 @@ export default function XiangqiGame({ onBack, initialRoomCode = "", onRoomCode }
           onBack();
         }}
         onRoomCode={onRoomCode}
+        onFinish={onFinish}
       />
     );
   }

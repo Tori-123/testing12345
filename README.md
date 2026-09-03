@@ -13,23 +13,24 @@
 - 跳棋：8×8 英美规则，本机搜索。先选执黑/执白和难度再开始；开局后不能改难度。
 - 人机模式支持落子历史、重新开局、引擎失败重试和胜负提示。联机有房间码、步时、认输，再来一局需双方同意。
 
-## 用户认证（Supabase Auth)
+## 用户认证（Supabase Auth）
 
-前端用 Supabase 做账号体系：注册、登录、登出、会话持久化。所有棋盘页和仪表盘都是受保护路由，未登录会被重定向到 `/login`。
+前端用 Supabase 做账号体系：**用用户名注册/登录**（内部映射为 `用户名@plyhan.app` 邮箱，用户名存到 `user_metadata` 用于显示）、登出、会话持久化。首页/棋盘游客可玩；`/dashboard` 受保护，未登录访问会重定向到 `/login`。
 
 ### 结构
 
 ```
 frontend/src/
 ├── lib/supabaseClient.js   # 封装的 Supabase 客户端（读 .env）
-├── auth/AuthContext.jsx    # 会话状态 + onAuthStateChange + 登录/注册/登出
+├── auth/AuthContext.jsx    # 会话 + onAuthStateChange + 用户名映射 + 登录/注册/登出
 ├── auth/ProtectedRoute.jsx # 路由守卫（HOC）：未登录跳 /login
 ├── components/AuthShell.jsx
 └── pages/
-    ├── LoginPage.jsx       # /login
-    ├── RegisterPage.jsx    # /register
+    ├── LoginPage.jsx       # /login（用户名 + 密码，可选「先不登录直接下棋」）
+    ├── RegisterPage.jsx    # /register（用户名 + 密码）
     ├── DashboardPage.jsx   # /dashboard（受保护，登出入口）
-    └── HomePage.jsx        # /（受保护，棋盘选择）
+    ├── TournamentPage.jsx  # /tournament（竞标赛 + 排行榜）
+    └── HomePage.jsx        # /（游客可玩，棋盘选择 + 竞标赛入口）
 ```
 
 ### 配置
@@ -49,6 +50,25 @@ VITE_SUPABASE_ANON_KEY=你的_anon_public_key
 - 会话由 `@supabase/supabase-js` 自动持久化（localStorage），刷新页面会恢复登录态。
 - 注册默认开启邮箱确认时，注册后会提示去邮箱验证，验证成功后才能登录。
 - 生产环境用 `BrowserRouter`，若用 Nginx/静态托管 dist，请配置 SPA fallback（所有路径回退到 `index.html`），否则刷新 `/dashboard` 会 404。
+
+## 竞标赛（Tournament）
+
+首页右上角「竞标赛」入口，登录后可用；未登录会提示先登录/注册，**不能直接使用**。
+
+- 随机一种棋实时匹配真人；**40 秒**没匹配到，安排电脑（用户名 **toir**，随机难度）。
+- 胜 **+5** 分、负 **-2** 分，积分最低为 0。
+- 按积分出排行榜（积分≥0），匿名可读。
+- 后端 `backend/tournament.py` 维护匹配队列；成绩写入 Supabase 积分表。
+
+### 上线前需要手动做的两步（否则积分不生效）
+
+1. 在 **Supabase SQL 编辑器** 执行一次 `supabase/tournament_scores.sql`（建 `tournament_scores` 表 + RLS + `bump_score` 函数）。
+2. 在**后端** `.env`（服务器 `/www/wwwroot/plyhan/.env` 与本地根目录 `.env`）填入：
+   ```dotenv
+   SUPABASE_URL=https://oxijzdgtpkprhqwzffnv.supabase.co
+   SUPABASE_SCORE_SERVICE_ROLE=你的_service_role_key
+   ```
+   然后重启后端（`systemctl restart plyhan.service`）。service_role 只放后端，**绝不放进前端**。
 
 ## 环境安装
 
@@ -183,21 +203,22 @@ One screen, four games: chess via chess-api.com, gomoku via local Rapfi, xiangqi
 
 ## Authentication (Supabase Auth)
 
-The frontend uses Supabase for accounts: register, login, logout, and session persistence. Every game page and the dashboard are protected routes; a logged-out user is redirected to `/login`.
+The frontend uses Supabase for accounts: **register/login by username** (internally mapped to a `username@plyhan.app` email, stored in `user_metadata` for display), logout, and session persistence. The home board is guest-playable; `/dashboard` is protected and redirects to `/login` when logged out.
 
 ### Structure
 
 ```
 frontend/src/
 ├── lib/supabaseClient.js   # Wrapped Supabase client (reads .env)
-├── auth/AuthContext.jsx    # Session state + onAuthStateChange + sign up/in/out
+├── auth/AuthContext.jsx    # Session + onAuthStateChange + username mapping + sign up/in/out
 ├── auth/ProtectedRoute.jsx # Route guard (HOC): redirects to /login when logged out
 ├── components/AuthShell.jsx
 └── pages/
-    ├── LoginPage.jsx       # /login
-    ├── RegisterPage.jsx    # /register
+    ├── LoginPage.jsx       # /login (username + password, optional guest play)
+    ├── RegisterPage.jsx    # /register (username + password)
     ├── DashboardPage.jsx   # /dashboard (protected, logout entry)
-    └── HomePage.jsx        # / (protected, board picker)
+    ├── TournamentPage.jsx  # /tournament (matchmaking + leaderboard)
+    └── HomePage.jsx        # / (guest-playable, board picker + tournament entry)
 ```
 
 ### Configuration
@@ -217,6 +238,25 @@ Only the anon key is used, **never the `service_role` key**. `.env` is gitignore
 - The session is persisted automatically by `@supabase/supabase-js` (localStorage) and survived a refresh.
 - Register uses email confirmation if enabled: after signing up you may need to verify your email before logging in.
 - Production uses `BrowserRouter`; if you host the built `dist` via Nginx/static hosting, configure an SPA fallback to `index.html`, or refreshing `/dashboard` will return 404.
+
+## Tournament
+
+The「竞标赛」entry in the home header requires login; a logged-out user is told to log in/register first.
+
+- Picks a random game and matches a real opponent; if no human appears within **40 seconds**, an AI named **toir** plays with a random difficulty.
+- Winner gets **+5** points, loser **-2**, floor at 0.
+- Leaderboard by points (>=0) is publicly readable.
+- `backend/tournament.py` runs the queue; results are written to the Supabase scores table.
+
+### Manual steps before scoring works
+
+1. Run `supabase/tournament_scores.sql` once in the **Supabase SQL Editor** (creates `tournament_scores`, RLS, and `bump_score`).
+2. Fill the **backend** `.env` (server `/www/wwwroot/plyhan/.env` and local root `.env`):
+   ```dotenv
+   SUPABASE_URL=https://oxijzdgtpkprhqwzffnv.supabase.co
+   SUPABASE_SCORE_SERVICE_ROLE=your_service_role_key
+   ```
+   Then restart the backend (`systemctl restart plyhan.service`). The service_role key lives only in the backend, **never in the frontend**.
 
 ## Setup
 

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, normalizeUsername } from "../auth/AuthContext";
 import AuthShell from "../components/AuthShell";
 
 export default function RegisterPage() {
   const { user, loading, signUp } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -23,8 +23,13 @@ export default function RegisterPage() {
     setError("");
     setNotice("");
 
-    if (!email || !password || !confirm) {
+    const name = normalizeUsername(username);
+    if (!name || !password || !confirm) {
       setError("请填写所有字段");
+      return;
+    }
+    if (!/^[a-z0-9_]{3,20}$/.test(name)) {
+      setError("用户名需为 3–20 位字母/数字/下划线，且不区分大小写");
       return;
     }
     if (password !== confirm) {
@@ -37,20 +42,20 @@ export default function RegisterPage() {
     }
 
     setSubmitting(true);
-    const { data, error } = await signUp(email, password);
+    const { data, error, username: savedName } = await signUp(name, password);
     setSubmitting(false);
 
     if (error) {
-      // 处理常见错误：邮箱已存在 / 密码太短 / 格式非法
+      // 常见错误：用户名已存在 / 密码太短 / 格式非法
       setError(error.message || "注册失败，请稍后重试");
       return;
     }
 
-    // 若该 Supabase 项目未开启邮箱确认，注册即登录；否则提示去邮箱确认
+    // 关闭邮箱确认场景下注册即登录；否则提示去邮箱确认
     if (data.session) {
       navigate("/dashboard", { replace: true });
     } else {
-      setNotice("注册成功，请前往邮箱确认后再登录。");
+      setNotice(`注册成功，欢迎 ${savedName}。请前往邮箱确认后再登录。`);
     }
   }
 
@@ -60,7 +65,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="注册"
-      subtitle="创建账号，保存你的对局体验"
+      subtitle="创建账号，参加竞标赛赢积分"
       footer={
         <p className="text-sm text-neutral-500">
           已有账号？{" "}
@@ -72,12 +77,12 @@ export default function RegisterPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
-          type="email"
+          type="text"
           required
-          autoComplete="email"
-          placeholder="邮箱"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
+          placeholder="用户名（3–20 位字母/数字/下划线）"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           className={inputClass}
         />
         <input

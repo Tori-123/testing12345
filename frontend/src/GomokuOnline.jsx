@@ -88,11 +88,14 @@ async function postJson(path, body) {
 
 export default function GomokuOnline({
   initialCode,
+  initialToken = "",
+  initialSeat = "",
   createSeat = "black",
   clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
+  onFinish,
 }) {
   const [code, setCode] = useState((initialCode || "").toUpperCase());
   const [seat, setSeat] = useState("");
@@ -116,6 +119,10 @@ export default function GomokuOnline({
   const seatRef = useRef("");
   const pendingRef = useRef(null);
   const applyStateRef = useRef(null);
+
+  useEffect(() => {
+    if (gameOver) onFinish?.({ seat, result });
+  }, [gameOver, onFinish, seat, result]);
   const clockSyncRef = useRef({ remain: 60_000, at: 0, running: false });
 
   function rollbackPending() {
@@ -209,7 +216,7 @@ export default function GomokuOnline({
         if (initialCode) {
           data = await postJson(
             `/api/v1/gomoku/rooms/${encodeURIComponent(initialCode)}/join`,
-            { token: saved?.token || "" },
+            { token: initialToken || saved?.token || "" },
           );
         } else {
           data = await postJson("/api/v1/gomoku/rooms", {
@@ -223,8 +230,8 @@ export default function GomokuOnline({
           return;
         }
         setToken(data.token);
-        setSeat(data.seat);
-        seatRef.current = data.seat;
+        setSeat(initialSeat || data.seat);
+        seatRef.current = initialSeat || data.seat;
         setCode(data.code);
         saveSeat({ code: data.code, token: data.token, seat: data.seat });
         onRoomCode?.(data.code);

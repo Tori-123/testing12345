@@ -102,7 +102,13 @@ function BrandStrip({ onBack, onHome, seat }) {
   );
 }
 
-function ChessAiGame({ onBack, onHome, initialSeat = "white" }) {
+function ChessAiGame({
+  onBack,
+  onHome,
+  initialSeat = "white",
+  initialDifficulty = "",
+  onFinish,
+}) {
   const [seat, setSeat] = useState(initialSeat === "black" ? "black" : "white");
   const [fen, setFen] = useState(START_FEN);
   const [legalUci, setLegalUci] = useState([]);
@@ -118,8 +124,14 @@ function ChessAiGame({ onBack, onHome, initialSeat = "white" }) {
   const [turn, setTurn] = useState("white");
   const [flight, setFlight] = useState(null);
   const [overOpen, setOverOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState("easy");
+  const [difficulty, setDifficulty] = useState(
+    initialDifficulty || "easy",
+  );
   const requestGen = useRef(0);
+
+  useEffect(() => {
+    if (gameOver) onFinish?.({ seat, result });
+  }, [gameOver, onFinish, seat, result]);
 
   const busy = phase !== "idle" || gameOver;
 
@@ -417,9 +429,20 @@ function ChessAiGame({ onBack, onHome, initialSeat = "white" }) {
   );
 }
 
-export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) {
+export default function ChessGame({
+  onBack,
+  initialRoomCode = "",
+  onRoomCode,
+  initialMode = "",
+  initialDifficulty = "",
+  initialToken = "",
+  initialSeat = "",
+  onFinish,
+}) {
   const lobby = useLobbyMode({
     initialRoomCode,
+    initialMode,
+    initialSeat,
     onRoomCode,
     defaultSeat: "white",
   });
@@ -427,9 +450,11 @@ export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) 
   if (lobby.mode === "ai") {
     return (
       <ChessAiGame
-        onBack={() => lobby.setMode("")}
+        onBack={() => (onFinish ? onBack() : lobby.setMode(""))}
         onHome={onBack}
         initialSeat={lobby.seat}
+        initialDifficulty={initialDifficulty}
+        onFinish={onFinish}
       />
     );
   }
@@ -437,6 +462,8 @@ export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) 
     return (
       <ChessOnline
         initialCode={lobby.roomCode}
+        initialToken={initialToken}
+        initialSeat={initialSeat}
         createSeat={lobby.seat}
         clockEnabled={lobby.clockEnabled}
         onBack={lobby.leaveRoom}
@@ -445,6 +472,7 @@ export default function ChessGame({ onBack, initialRoomCode = "", onRoomCode }) 
           onBack();
         }}
         onRoomCode={onRoomCode}
+        onFinish={onFinish}
       />
     );
   }

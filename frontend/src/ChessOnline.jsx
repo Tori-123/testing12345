@@ -77,17 +77,23 @@ function ChessOnlineBoard({
 
 export default function ChessOnline({
   initialCode,
+  initialToken = "",
+  initialSeat = "",
   createSeat = "white",
   clockEnabled = true,
   onBack,
   onHome,
   onRoomCode,
+  onFinish,
 }) {
   return (
     <BoardOnline
       game="chess"
       initialCode={initialCode}
+      initialToken={initialToken}
+      initialSeat={initialSeat}
       createSeat={createSeat}
+      onGameOver={(result, seat) => onFinish?.({ seat, result })}
       clockEnabled={clockEnabled}
       firstSeat="white"
       secondSeat="black"

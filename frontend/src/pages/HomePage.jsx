@@ -4,7 +4,7 @@ import ChessGame from "../ChessGame.jsx";
 import DraughtsGame from "../DraughtsGame.jsx";
 import GomokuGame from "../GomokuGame.jsx";
 import XiangqiGame from "../XiangqiGame.jsx";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, usernameOf } from "../auth/AuthContext";
 
 const GAMES = new Set(["chess", "gomoku", "xiangqi", "draughts"]);
 
@@ -41,34 +41,42 @@ function ModePicker({ onSelect, user, signingOut, onLogout }) {
           <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
             选一个棋盘。国际象棋、五子棋、中国象棋、跳棋都可以对电脑或开房间联机。
           </p>
-          {user ? (
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-neutral-500">{user.email}</span>
-              <button
-                type="button"
-                onClick={onLogout}
-                disabled={signingOut}
-                className="text-red-600 underline underline-offset-2 disabled:opacity-50"
-              >
-                {signingOut ? "登出中…" : "登出"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 text-sm">
-              <Link
-                to="/login"
-                className="text-red-600 underline underline-offset-2"
-              >
-                登录
-              </Link>
-              <Link
-                to="/register"
-                className="text-neutral-400 underline underline-offset-2"
-              >
-                注册
-              </Link>
-            </div>
-          )}
+          <div className="flex items-center gap-4 text-sm">
+            <Link
+              to="/tournament"
+              className="font-medium text-red-600 underline underline-offset-2"
+            >
+              竞标赛
+            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-neutral-500">{usernameOf(user)}</span>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  disabled={signingOut}
+                  className="text-red-600 underline underline-offset-2 disabled:opacity-50"
+                >
+                  {signingOut ? "登出中…" : "登出"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/login"
+                  className="text-red-600 underline underline-offset-2"
+                >
+                  登录
+                </Link>
+                <Link
+                  to="/register"
+                  className="text-neutral-400 underline underline-offset-2"
+                >
+                  注册
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:grid-cols-2 sm:gap-4 md:content-center md:items-stretch">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, usernameOf } from "../auth/AuthContext";
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
@@ -17,7 +17,7 @@ export default function DashboardPage() {
     navigate("/login", { replace: true });
   }
 
-  const email = user?.email ?? "未知用户";
+  const email = usernameOf(user) || "未知用户";
   const createdAt = user?.created_at;
 
   return (
@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
           <dl className="mt-6 space-y-3 text-sm">
             <div>
-              <dt className="text-neutral-500">邮箱</dt>
+              <dt className="text-neutral-500">用户名</dt>
               <dd className="mt-1 text-neutral-100">{email}</dd>
             </div>
             {createdAt ? (

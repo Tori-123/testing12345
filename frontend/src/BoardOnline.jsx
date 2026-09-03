@@ -65,6 +65,8 @@ async function postJson(path, body) {
 export default function BoardOnline({
   game,
   initialCode = "",
+  initialToken = "",
+  initialSeat = "",
   createSeat,
   firstSeat,
   secondSeat,
@@ -83,6 +85,7 @@ export default function BoardOnline({
   slideMs = 420,
   readPiece,
   clearSquare,
+  onGameOver,
 }) {
   const [code, setCode] = useState("");
   const [seat, setSeat] = useState("");
@@ -258,6 +261,7 @@ export default function BoardOnline({
     else setErrorMessage("");
     if (data.game_over) setOverOpen(true);
     else setOverOpen(false);
+    if (data.game_over) onGameOver?.(data.result || "", seatRef.current);
   }
 
   applyStateRef.current = applyState;
@@ -283,7 +287,7 @@ export default function BoardOnline({
         if (invite) {
           data = await postJson(
             `/api/v1/${game}/rooms/${encodeURIComponent(invite)}/join`,
-            { token: saved?.token || "" },
+            { token: initialToken || saved?.token || "" },
           );
         } else {
           data = await postJson(`/api/v1/${game}/rooms`, {
@@ -297,8 +301,8 @@ export default function BoardOnline({
           return;
         }
         setToken(data.token);
-        setSeat(data.seat);
-        seatRef.current = data.seat;
+        setSeat(initialSeat || data.seat);
+        seatRef.current = initialSeat || data.seat;
         setCode(data.code);
         saveSeat(storageKey, {
           code: data.code,

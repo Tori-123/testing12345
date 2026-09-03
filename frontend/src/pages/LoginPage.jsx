@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, normalizeUsername } from "../auth/AuthContext";
 import AuthShell from "../components/AuthShell";
 
 export default function LoginPage() {
@@ -8,7 +8,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -25,17 +25,18 @@ export default function LoginPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
-    if (!email || !password) {
-      setError("请输入邮箱和密码");
+    const name = normalizeUsername(username);
+    if (!name || !password) {
+      setError("请输入用户名和密码");
       return;
     }
     setSubmitting(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(name, password);
     setSubmitting(false);
 
     if (error) {
-      // 处理常见错误：密码错误 / 邮箱不存在 / 未验证邮箱
-      setError(error.message || "登录失败，请稍后重试");
+      // 常见错误：用户名不存在 / 密码错误
+      setError(error.message || "登录失败，请检查用户名或密码");
       return;
     }
     navigate(from, { replace: true });
@@ -47,7 +48,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="登录"
-      subtitle="输入邮箱和密码，继续下棋"
+      subtitle="输入用户名和密码"
       footer={
         <p className="text-sm text-neutral-500">
           还没有账号？{" "}
@@ -62,12 +63,12 @@ export default function LoginPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
-          type="email"
+          type="text"
           required
-          autoComplete="email"
-          placeholder="邮箱"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
+          placeholder="用户名"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           className={inputClass}
         />
         <input
