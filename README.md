@@ -2,7 +2,7 @@
 
 [中文](#plyhan) · [English](#plyhan-english)
 
-单屏四棋种：国际象棋使用 chess-api.com，五子棋使用本机 Rapfi，中国象棋使用本机 Pikafish，跳棋使用本机英式规则与 alpha-beta。无账号、无数据库、刷新即清空。
+单屏四棋种：国际象棋使用 chess-api.com，五子棋使用本机 Rapfi，中国象棋使用本机 Pikafish，跳棋使用本机英式规则与 alpha-beta。用户注册/登录由 Supabase Auth 提供，未登录只能看到登录/注册页，登录后才能进入棋盘。
 
 ## 功能
 
@@ -12,6 +12,43 @@
 - 中国象棋人机：本机 Pikafish。联机不调引擎，创建者自选执红或执黑。
 - 跳棋：8×8 英美规则，本机搜索。先选执黑/执白和难度再开始；开局后不能改难度。
 - 人机模式支持落子历史、重新开局、引擎失败重试和胜负提示。联机有房间码、步时、认输，再来一局需双方同意。
+
+## 用户认证（Supabase Auth)
+
+前端用 Supabase 做账号体系：注册、登录、登出、会话持久化。所有棋盘页和仪表盘都是受保护路由，未登录会被重定向到 `/login`。
+
+### 结构
+
+```
+frontend/src/
+├── lib/supabaseClient.js   # 封装的 Supabase 客户端（读 .env）
+├── auth/AuthContext.jsx    # 会话状态 + onAuthStateChange + 登录/注册/登出
+├── auth/ProtectedRoute.jsx # 路由守卫（HOC）：未登录跳 /login
+├── components/AuthShell.jsx
+└── pages/
+    ├── LoginPage.jsx       # /login
+    ├── RegisterPage.jsx    # /register
+    ├── DashboardPage.jsx   # /dashboard（受保护，登出入口）
+    └── HomePage.jsx        # /（受保护，棋盘选择）
+```
+
+### 配置
+
+在 Supabase Dashboard → Project Settings → API 拿到项目 URL 和 anon(public) key，写入 `frontend/.env`：
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_SUPABASE_URL=https://oxijzdgtpkprhqwzffnv.supabase.co
+VITE_SUPABASE_ANON_KEY=你的_anon_public_key
+```
+
+只使用 anon key，**绝不使用 `service_role` key**。`.env` 已被 `.gitignore` 忽略，不会进仓库。
+
+### 说明
+
+- 会话由 `@supabase/supabase-js` 自动持久化（localStorage），刷新页面会恢复登录态。
+- 注册默认开启邮箱确认时，注册后会提示去邮箱验证，验证成功后才能登录。
+- 生产环境用 `BrowserRouter`，若用 Nginx/静态托管 dist，请配置 SPA fallback（所有路径回退到 `index.html`），否则刷新 `/dashboard` 会 404。
 
 ## 环境安装
 
@@ -133,7 +170,7 @@ curl http://127.0.0.1:8000/health
 
 # PlyHan (English)
 
-One screen, four games: chess via chess-api.com, gomoku via local Rapfi, xiangqi via local Pikafish, and English draughts via an in-process alpha-beta search. No accounts, no database. Refresh clears everything.
+One screen, four games: chess via chess-api.com, gomoku via local Rapfi, xiangqi via local Pikafish, and English draughts via an in-process alpha-beta search. User registration/login is handled by Supabase Auth. Without a session you only see the login/register pages; the game boards are behind a login.
 
 ## Features
 
@@ -143,6 +180,43 @@ One screen, four games: chess via chess-api.com, gomoku via local Rapfi, xiangqi
 - Xiangqi vs computer: local Pikafish. Online play does not call the engine. The room creator picks Red or Black.
 - Draughts: 8×8 English/American rules, local search. Pick Black/White and difficulty, then start. Difficulty cannot be changed after the game starts.
 - Vs-computer mode has move history, restart, engine-failure retry, and a win/loss prompt. Online rooms have a room code, per-move clock, resign, and a rematch that only resets when both players agree.
+
+## Authentication (Supabase Auth)
+
+The frontend uses Supabase for accounts: register, login, logout, and session persistence. Every game page and the dashboard are protected routes; a logged-out user is redirected to `/login`.
+
+### Structure
+
+```
+frontend/src/
+├── lib/supabaseClient.js   # Wrapped Supabase client (reads .env)
+├── auth/AuthContext.jsx    # Session state + onAuthStateChange + sign up/in/out
+├── auth/ProtectedRoute.jsx # Route guard (HOC): redirects to /login when logged out
+├── components/AuthShell.jsx
+└── pages/
+    ├── LoginPage.jsx       # /login
+    ├── RegisterPage.jsx    # /register
+    ├── DashboardPage.jsx   # /dashboard (protected, logout entry)
+    └── HomePage.jsx        # / (protected, board picker)
+```
+
+### Configuration
+
+Grab the project URL and anon(public) key from Supabase Dashboard → Project Settings → API, then write them to `frontend/.env`:
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_SUPABASE_URL=https://oxijzdgtpkprhqwzffnv.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_public_key
+```
+
+Only the anon key is used, **never the `service_role` key**. `.env` is gitignored and won't be committed.
+
+### Notes
+
+- The session is persisted automatically by `@supabase/supabase-js` (localStorage) and survived a refresh.
+- Register uses email confirmation if enabled: after signing up you may need to verify your email before logging in.
+- Production uses `BrowserRouter`; if you host the built `dist` via Nginx/static hosting, configure an SPA fallback to `index.html`, or refreshing `/dashboard` will return 404.
 
 ## Setup
 
