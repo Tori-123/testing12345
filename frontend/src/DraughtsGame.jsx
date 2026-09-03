@@ -6,6 +6,8 @@ import DraughtsBoard, {
   hopsFromUci,
   pieceAtFen,
 } from "./DraughtsBoard.jsx";
+import DraughtsOnline from "./DraughtsOnline.jsx";
+import GameLobby, { useLobbyMode } from "./GameLobby.jsx";
 import {
   DifficultySelect,
   GameControls,
@@ -89,8 +91,8 @@ async function postPlay(fen, uci = "", difficulty = "easy", side = "black") {
   }
 }
 
-export default function DraughtsGame({ onBack }) {
-  const [seat, setSeat] = useState("black");
+function DraughtsAiGame({ onBack, initialSeat = "black" }) {
+  const [seat, setSeat] = useState(initialSeat === "white" ? "white" : "black");
   const [started, setStarted] = useState(false);
   const [fen, setFen] = useState(START_FEN);
   const [legalUci, setLegalUci] = useState([]);
@@ -407,6 +409,76 @@ export default function DraughtsGame({ onBack }) {
           />
         ) : null
       }
+    />
+  );
+}
+
+export default function DraughtsGame({
+  onBack,
+  initialRoomCode = "",
+  onRoomCode,
+}) {
+  const lobby = useLobbyMode({
+    initialRoomCode,
+    onRoomCode,
+    defaultSeat: "black",
+  });
+
+  if (lobby.mode === "ai") {
+    return (
+      <DraughtsAiGame
+        onBack={() => lobby.setMode("")}
+        onHome={onBack}
+        initialSeat={lobby.seat}
+      />
+    );
+  }
+  if (lobby.mode === "online") {
+    return (
+      <DraughtsOnline
+        initialCode={lobby.roomCode}
+        createSeat={lobby.seat}
+        clockEnabled={lobby.clockEnabled}
+        onBack={lobby.leaveRoom}
+        onHome={() => {
+          lobby.leaveRoom();
+          onBack();
+        }}
+        onRoomCode={onRoomCode}
+      />
+    );
+  }
+
+  return (
+    <GameLobby
+      title="跳棋"
+      blurb="自己对电脑，或创建房间把链接发给对方。先选执黑或执白。"
+      engineLabel="本机搜索"
+      engineHint={
+        lobby.seat === "white"
+          ? "你执白，电脑先走黑子"
+          : "你执黑，本机引擎回一手"
+      }
+      onlineHint={
+        lobby.seat === "white"
+          ? "生成房间码和链接，你执白"
+          : "生成房间码和链接，你执黑"
+      }
+      seat={lobby.seat}
+      seats={[
+        { id: "black", label: "执黑" },
+        { id: "white", label: "执白" },
+      ]}
+      onSeat={lobby.setSeat}
+      onBack={onBack}
+      onAi={() => lobby.setMode("ai")}
+      onCreate={lobby.createRoom}
+      joinDraft={lobby.joinDraft}
+      onJoinDraft={lobby.setJoinDraft}
+      onJoin={lobby.joinRoom}
+      errorMessage={lobby.lobbyError}
+      clockEnabled={lobby.clockEnabled}
+      onClockEnabled={lobby.setClockEnabled}
     />
   );
 }

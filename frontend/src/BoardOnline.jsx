@@ -384,7 +384,7 @@ export default function BoardOnline({
     };
     pendingRef.current = { uci, afterCount: sans.length + 1 };
     const from = uci.slice(0, 2);
-    const to = uci.slice(2, 4);
+    const to = uci.slice(-2);
     startFlight(from, to, fen, nextFen, slideMs);
     fenRef.current = nextFen;
     setLegalUci([]);

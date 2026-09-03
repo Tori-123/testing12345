@@ -4,6 +4,7 @@ import ChessGame from "../ChessGame.jsx";
 import DraughtsGame from "../DraughtsGame.jsx";
 import GomokuGame from "../GomokuGame.jsx";
 import XiangqiGame from "../XiangqiGame.jsx";
+import { useAuth } from "../auth/AuthContext";
 
 const GAMES = new Set(["chess", "gomoku", "xiangqi", "draughts"]);
 
@@ -26,7 +27,7 @@ function GameCard({ engine, title, hint, onClick }) {
   );
 }
 
-function ModePicker({ onSelect }) {
+function ModePicker({ onSelect, user, signingOut, onLogout }) {
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh] [padding-top:max(1.25rem,env(safe-area-inset-top))] [padding-bottom:max(1.25rem,env(safe-area-inset-bottom))] [padding-left:max(1rem,env(safe-area-inset-left))] [padding-right:max(1rem,env(safe-area-inset-right))]">
       <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -36,16 +37,38 @@ function ModePicker({ onSelect }) {
             今天下哪一种？
           </h1>
         </div>
-        <div className="max-w-md sm:max-w-sm sm:text-right">
-          <p className="text-sm leading-relaxed text-neutral-500">
-            选一个棋盘。国际象棋、五子棋、中国象棋可以对电脑或开房间；跳棋目前只对人机。
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
+            选一个棋盘。国际象棋、五子棋、中国象棋、跳棋都可以对电脑或开房间联机。
           </p>
-          <Link
-            to="/dashboard"
-            className="mt-3 inline-block text-sm text-neutral-400 underline underline-offset-2 hover:text-red-600"
-          >
-            账号
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-neutral-500">{user.email}</span>
+              <button
+                type="button"
+                onClick={onLogout}
+                disabled={signingOut}
+                className="text-red-600 underline underline-offset-2 disabled:opacity-50"
+              >
+                {signingOut ? "登出中…" : "登出"}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 text-sm">
+              <Link
+                to="/login"
+                className="text-red-600 underline underline-offset-2"
+              >
+                登录
+              </Link>
+              <Link
+                to="/register"
+                className="text-neutral-400 underline underline-offset-2"
+              >
+                注册
+              </Link>
+            </div>
+          )}
         </div>
       </header>
       <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:grid-cols-2 sm:gap-4 md:content-center md:items-stretch">
@@ -70,7 +93,7 @@ function ModePicker({ onSelect }) {
         <GameCard
           engine="本机搜索"
           title="跳棋"
-          hint="8×8 英美规则，只对人机"
+          hint="8×8 英美规则，支持人机与联机"
           onClick={() => onSelect("draughts")}
         />
       </div>
@@ -79,6 +102,8 @@ function ModePicker({ onSelect }) {
 }
 
 export default function HomePage() {
+  const { user, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [selectedGame, setSelectedGame] = useState(() => {
     const game = new URLSearchParams(window.location.search).get("game");
     return GAMES.has(game) ? game : null;
@@ -111,6 +136,15 @@ export default function HomePage() {
     setSelectedGame(null);
   }
 
+  async function handleLogout() {
+    setSigningOut(true);
+    const { error } = await signOut();
+    setSigningOut(false);
+    if (error) {
+      console.error("登出失败", error.message);
+    }
+  }
+
   if (selectedGame === "chess") {
     return (
       <ChessGame
@@ -139,10 +173,19 @@ export default function HomePage() {
     );
   }
   if (selectedGame === "draughts") {
-    return <DraughtsGame onBack={goHome} />;
+    return (
+      <DraughtsGame
+        initialRoomCode={roomCode}
+        onBack={goHome}
+        onRoomCode={(code) => writeInvite("draughts", code)}
+      />
+    );
   }
   return (
     <ModePicker
+      user={user}
+      signingOut={signingOut}
+      onLogout={handleLogout}
       onSelect={(game) => {
         setRoomCode("");
         setSelectedGame(game);

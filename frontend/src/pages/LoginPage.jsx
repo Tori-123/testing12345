@@ -91,6 +91,13 @@ export default function LoginPage() {
         >
           {submitting ? "登录中…" : "登录"}
         </button>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="w-full rounded-none border border-neutral-700 px-4 py-3 text-sm text-neutral-300 hover:border-red-600 hover:text-white"
+        >
+          先不登录，直接下棋
+        </button>
       </form>
     </AuthShell>
   );

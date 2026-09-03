@@ -31,6 +31,11 @@ except ImportError:
     from xiangqi_rooms import router as xiangqi_room_router
 
 try:
+    from .draughts_rooms import router as draughts_room_router
+except ImportError:
+    from draughts_rooms import router as draughts_room_router
+
+try:
     from .rapfi import get_rapfi_engine
 except ImportError:
     from rapfi import get_rapfi_engine
@@ -172,6 +177,7 @@ app.add_middleware(
 app.include_router(gomoku_room_router)
 app.include_router(chess_room_router)
 app.include_router(xiangqi_room_router)
+app.include_router(draughts_room_router)
 
 
 class AnalyzeRequest(BaseModel):

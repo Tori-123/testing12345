@@ -26,6 +26,7 @@ class BoardRules(Protocol):
     def legal_uci(self, fen: str) -> list[str]: ...
     def play(self, fen: str, uci: str) -> tuple[str, str, str]: ...
     def outcome(self, fen: str) -> tuple[bool, str, str]: ...
+    def move_squares(self, uci: str) -> tuple[str, str]: ...
 
 
 class CreateRoomRequest(BaseModel):
@@ -49,6 +50,7 @@ class BoardRoomResponse(BaseModel):
     sans: list[str] = Field(default_factory=list)
     from_square: str = ""
     to_square: str = ""
+    last_uci: str = ""
     game_over: bool = False
     result: str = ""
     end_reason: Literal["", "mate", "draw", "resign", "timeout"] = ""
@@ -89,6 +91,7 @@ class BoardRoom:
         self.winner = ""
         self.from_square = ""
         self.to_square = ""
+        self.last_uci = ""
         self.turn_started = time.monotonic()
         self.clock_gen = 0
         self.clock_task: asyncio.Task | None = None
@@ -116,6 +119,7 @@ class BoardRoom:
         self.winner = ""
         self.from_square = ""
         self.to_square = ""
+        self.last_uci = ""
         self.turn_started = time.monotonic()
         self.restart = {self.rules.first: False, self.rules.second: False}
 
@@ -154,6 +158,7 @@ class BoardRoom:
             "sans": list(self.sans),
             "from_square": self.from_square,
             "to_square": self.to_square,
+            "last_uci": self.last_uci,
             "game_over": over,
             "result": result,
             "end_reason": end_reason,
@@ -238,6 +243,7 @@ def _response(
         sans=data["sans"],
         from_square=data["from_square"],
         to_square=data["to_square"],
+        last_uci=data.get("last_uci", ""),
         game_over=data["game_over"],
         result=data["result"],
         end_reason=data["end_reason"],
@@ -314,8 +320,13 @@ def build_board_room_router(rules: BoardRules) -> APIRouter:
             return error
         room.fen = new_fen
         room.sans.append(san)
-        room.from_square = uci[:2] if len(uci) >= 4 else ""
-        room.to_square = uci[2:4] if len(uci) >= 4 else ""
+        squares = getattr(rules, "move_squares", None)
+        if callable(squares):
+            room.from_square, room.to_square = squares(uci)
+        else:
+            room.from_square = uci[:2] if len(uci) >= 4 else ""
+            room.to_square = uci[2:4] if len(uci) >= 4 else ""
+        room.last_uci = uci
         room.restart = {rules.first: False, rules.second: False}
         return ""
 
