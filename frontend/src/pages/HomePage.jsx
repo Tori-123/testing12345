@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import ChessGame from "../ChessGame.jsx";
 import DraughtsGame from "../DraughtsGame.jsx";
 import GomokuGame from "../GomokuGame.jsx";
@@ -35,9 +36,17 @@ function ModePicker({ onSelect }) {
             今天下哪一种？
           </h1>
         </div>
-        <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
-          选一个棋盘。国际象棋、五子棋、中国象棋可以对电脑或开房间；跳棋目前只对人机。
-        </p>
+        <div className="max-w-md sm:max-w-sm sm:text-right">
+          <p className="text-sm leading-relaxed text-neutral-500">
+            选一个棋盘。国际象棋、五子棋、中国象棋可以对电脑或开房间；跳棋目前只对人机。
+          </p>
+          <Link
+            to="/dashboard"
+            className="mt-3 inline-block text-sm text-neutral-400 underline underline-offset-2 hover:text-red-600"
+          >
+            账号
+          </Link>
+        </div>
       </header>
       <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto sm:mt-6 sm:grid-cols-2 sm:gap-4 md:content-center md:items-stretch">
         <GameCard

@@ -13,7 +13,10 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const fromLocation = location.state?.from;
+  const from = fromLocation
+    ? `${fromLocation.pathname}${fromLocation.search}`
+    : "/dashboard";
 
   if (!loading && user) {
     return <Navigate to="/dashboard" replace />;
