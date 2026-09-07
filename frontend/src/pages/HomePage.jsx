@@ -5,6 +5,7 @@ import DraughtsGame from "../DraughtsGame.jsx";
 import GomokuGame from "../GomokuGame.jsx";
 import XiangqiGame from "../XiangqiGame.jsx";
 import { useAuth, usernameOf } from "../auth/AuthContext";
+import { ThemeToggle } from "../theme.jsx";
 
 const GAMES = new Set(["chess", "gomoku", "xiangqi", "draughts"]);
 
@@ -13,14 +14,14 @@ function GameCard({ engine, title, hint, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,38vh)] md:min-h-[11rem]"
+      className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-line bg-surface p-5 text-left transition-colors hover:border-red-600 sm:min-h-[10rem] sm:p-8 md:h-[min(16rem,38vh)] md:min-h-[11rem]"
     >
-      <span className="text-sm text-neutral-500">{engine}</span>
+      <span className="text-sm text-muted">{engine}</span>
       <span>
         <span className="block text-2xl font-bold sm:text-3xl md:text-4xl">
           {title}
         </span>
-        <span className="mt-3 block text-sm text-neutral-500">{hint}</span>
+        <span className="mt-3 block text-sm text-muted">{hint}</span>
       </span>
       <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
     </button>
@@ -29,7 +30,7 @@ function GameCard({ engine, title, hint, onClick }) {
 
 function ModePicker({ onSelect, user, signingOut, onLogout }) {
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh] [padding-top:max(1.25rem,env(safe-area-inset-top))] [padding-bottom:max(1.25rem,env(safe-area-inset-bottom))] [padding-left:max(1rem,env(safe-area-inset-left))] [padding-right:max(1rem,env(safe-area-inset-right))]">
+    <main className="flex h-screen flex-col overflow-hidden bg-page px-4 py-5 font-sans text-ink sm:px-6 sm:py-8 [height:100dvh] [padding-top:max(1.25rem,env(safe-area-inset-top))] [padding-bottom:max(1.25rem,env(safe-area-inset-bottom))] [padding-left:max(1rem,env(safe-area-inset-left))] [padding-right:max(1rem,env(safe-area-inset-right))]">
       <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-base font-semibold tracking-tight sm:text-lg">PlyHan</p>
@@ -38,10 +39,11 @@ function ModePicker({ onSelect, user, signingOut, onLogout }) {
           </h1>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
-          <p className="max-w-md text-sm leading-relaxed text-neutral-500 sm:max-w-sm sm:text-right">
+          <p className="max-w-md text-sm leading-relaxed text-muted sm:max-w-sm sm:text-right">
             选一个棋盘。国际象棋、五子棋、中国象棋、跳棋都可以对电脑或开房间联机。
           </p>
           <div className="flex items-center gap-4 text-sm">
+            <ThemeToggle />
             <Link
               to="/tournament"
               className="font-medium text-red-600 underline underline-offset-2"
@@ -50,7 +52,7 @@ function ModePicker({ onSelect, user, signingOut, onLogout }) {
             </Link>
             {user ? (
               <div className="flex items-center gap-3">
-                <span className="text-neutral-500">{usernameOf(user)}</span>
+                <span className="text-muted">{usernameOf(user)}</span>
                 <button
                   type="button"
                   onClick={onLogout}
@@ -70,7 +72,7 @@ function ModePicker({ onSelect, user, signingOut, onLogout }) {
                 </Link>
                 <Link
                   to="/register"
-                  className="text-neutral-400 underline underline-offset-2"
+                  className="text-muted underline underline-offset-2"
                 >
                   注册
                 </Link>

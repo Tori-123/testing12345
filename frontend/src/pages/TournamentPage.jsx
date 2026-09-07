@@ -5,6 +5,7 @@ import GomokuGame from "../GomokuGame.jsx";
 import XiangqiGame from "../XiangqiGame.jsx";
 import DraughtsGame from "../DraughtsGame.jsx";
 import { useAuth, usernameOf } from "../auth/AuthContext";
+import { ThemeToggle } from "../theme.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -93,7 +94,7 @@ function Leaderboard() {
       <h2 className="text-sm font-semibold tracking-wide text-neutral-500">
         积分排行榜
       </h2>
-      <div className="mt-2 max-h-[40vh] overflow-y-auto rounded-none border border-neutral-800">
+      <div className="mt-2 max-h-[40vh] overflow-y-auto rounded-none border border-line">
         {loading ? (
           <p className="px-4 py-3 text-sm text-neutral-500">加载中…</p>
         ) : rows.length === 0 ? (
@@ -101,7 +102,7 @@ function Leaderboard() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-neutral-800 text-left text-xs text-neutral-500">
+              <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">用户名</th>
                 <th className="px-4 py-2 text-right font-medium">积分</th>
@@ -112,7 +113,7 @@ function Leaderboard() {
               {rows.map((row, i) => (
                 <tr
                   key={row.username + i}
-                  className="border-b border-neutral-900 last:border-0"
+                  className="border-b border-line last:border-0"
                 >
                   <td className="px-4 py-2 text-neutral-500">{i + 1}</td>
                   <td className="px-4 py-2">{row.username}</td>
@@ -213,10 +214,10 @@ function RiffleShuffle({ drawing = false, flipped = false, gameLabel = "" }) {
                 flipped ? "flipped" : ""
               }`}
             >
-              <div className="tourney-card-back absolute inset-0 flex items-center justify-center border border-neutral-600 bg-neutral-900 text-lg text-neutral-500">
+              <div className="tourney-card-back absolute inset-0 flex items-center justify-center border border-line bg-surface text-lg text-muted">
                 ?
               </div>
-              <div className="tourney-card-front absolute inset-0 flex items-center justify-center border border-red-600 bg-neutral-900 px-1 text-center text-sm font-medium text-red-600">
+              <div className="tourney-card-front absolute inset-0 flex items-center justify-center border border-red-600 bg-surface px-1 text-center text-sm font-medium text-red-600">
                 {gameLabel}
               </div>
             </div>
@@ -339,7 +340,10 @@ function Lobby({ user, onMatch, name }) {
 
   if (phase === "waiting" || phase === "revealing") {
     return (
-      <main className="flex h-screen flex-col items-center justify-center bg-neutral-950 px-5 font-sans text-neutral-100">
+      <main className="relative flex h-screen flex-col items-center justify-center bg-page px-5 font-sans text-ink">
+        <div className="absolute right-5 top-5">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-md text-center">
           <h2 className="text-2xl font-bold">
             {phase === "revealing" ? "抽取棋种" : "正在匹配对手…"}
@@ -352,15 +356,15 @@ function Lobby({ user, onMatch, name }) {
             />
           </div>
           {phase === "waiting" ? (
-            <p className="mt-6 text-sm text-neutral-500">已等待 {elapsed} 秒</p>
+            <p className="mt-6 text-sm text-muted">已等待 {elapsed} 秒</p>
           ) : (
-            <p className="mt-6 text-sm text-neutral-500">抽出本局棋种</p>
+            <p className="mt-6 text-sm text-muted">抽出本局棋种</p>
           )}
           {phase === "waiting" ? (
             <button
               type="button"
               onClick={cancel}
-              className="mt-8 text-sm text-neutral-400 underline underline-offset-2"
+              className="mt-8 text-sm text-muted underline underline-offset-2"
             >
               取消匹配
             </button>
@@ -371,15 +375,18 @@ function Lobby({ user, onMatch, name }) {
   }
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh]">
-      <header className="flex shrink-0 items-center justify-between">
+    <main className="flex h-screen flex-col overflow-hidden bg-page px-4 py-5 font-sans text-ink sm:px-6 sm:py-8 [height:100dvh]">
+      <header className="flex shrink-0 items-center justify-between gap-3">
         <p className="text-base font-semibold tracking-tight sm:text-lg">PlyHan</p>
-        <Link
-          to="/"
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
-        >
-          返回
-        </Link>
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          <Link
+            to="/"
+            className="text-sm text-muted underline underline-offset-2 hover:text-ink"
+          >
+            返回
+          </Link>
+        </div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
         <h1 className="text-3xl font-bold sm:text-4xl">竞标赛</h1>
@@ -399,9 +406,12 @@ function Lobby({ user, onMatch, name }) {
 
 function VsCard({ you, opponent }) {
   return (
-    <main className="flex h-screen flex-col items-center justify-center bg-neutral-950 px-5 font-sans text-neutral-100 [height:100dvh]">
+    <main className="relative flex h-screen flex-col items-center justify-center bg-page px-5 font-sans text-ink [height:100dvh]">
+      <div className="absolute right-5 top-5">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-lg text-center">
-        <p className="text-sm tracking-wide text-neutral-500">匹配成功</p>
+        <p className="text-sm tracking-wide text-muted">匹配成功</p>
         <div className="mt-8 flex items-center justify-center gap-4 sm:gap-8">
           <p className="min-w-0 flex-1 text-right text-2xl font-bold sm:text-3xl">
             {you}
@@ -411,7 +421,7 @@ function VsCard({ you, opponent }) {
             {opponent}
           </p>
         </div>
-        <div className="tourney-vs-bar mx-auto mt-8 h-1 w-full max-w-xs bg-neutral-800">
+        <div className="tourney-vs-bar mx-auto mt-8 h-1 w-full max-w-xs bg-line">
           <div className="h-full bg-red-600" />
         </div>
       </div>
@@ -421,11 +431,14 @@ function VsCard({ you, opponent }) {
 
 function Gate({ name, toLogin }) {
   return (
-    <main className="flex h-screen flex-col items-center justify-center bg-neutral-950 px-5 font-sans text-neutral-100 [height:100dvh]">
+    <main className="relative flex h-screen flex-col items-center justify-center bg-page px-5 font-sans text-ink [height:100dvh]">
+      <div className="absolute right-5 top-5">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm text-center">
         <p className="text-base font-semibold tracking-tight">PlyHan</p>
         <h1 className="mt-2 text-2xl font-bold">竞标赛</h1>
-        <p className="mt-4 text-sm leading-relaxed text-neutral-500">
+        <p className="mt-4 text-sm leading-relaxed text-muted">
           {name ? `${name}，` : ""}参加竞标赛需要先登录账号。胜 +5 分、负 -2 分，积分计入排行榜。
         </p>
         <Link
@@ -436,13 +449,13 @@ function Gate({ name, toLogin }) {
         </Link>
         <Link
           to="/register"
-          className="mt-3 block w-full rounded-none border border-neutral-700 px-4 py-3 text-sm text-neutral-300"
+          className="mt-3 block w-full rounded-none border border-line px-4 py-3 text-sm text-ink"
         >
           注册新账号
         </Link>
         <Link
           to="/"
-          className="mt-6 block text-sm text-neutral-500 underline underline-offset-2"
+          className="mt-6 block text-sm text-muted underline underline-offset-2"
         >
           先不登录，直接下棋
         </Link>

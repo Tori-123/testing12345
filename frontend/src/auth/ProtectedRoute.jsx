@@ -9,10 +9,10 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950 font-sans text-neutral-100">
+      <div className="flex h-screen items-center justify-center bg-page font-sans text-ink">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-700 border-t-red-600" />
-          <p className="text-sm text-neutral-500">正在加载登录状态…</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-red-600" />
+          <p className="text-sm text-muted">正在加载登录状态…</p>
         </div>
       </div>
     );

@@ -95,7 +95,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="w-full rounded-none border border-neutral-700 px-4 py-3 text-sm text-neutral-300 hover:border-red-600 hover:text-white"
+          className="w-full rounded-none border border-line px-4 py-3 text-sm text-ink hover:border-red-600 hover:text-red-600"
         >
           先不登录，直接下棋
         </button>

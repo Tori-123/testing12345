@@ -1,3 +1,5 @@
+import { ThemeToggle } from "./theme.jsx";
+
 export function GameHeader({
   onBack,
   onHome,
@@ -15,7 +17,7 @@ export function GameHeader({
           <button
             type="button"
             onClick={onBack}
-            className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+            className="shrink-0 text-sm text-muted underline underline-offset-2 hover:text-ink"
           >
             {backLabel}
           </button>
@@ -24,14 +26,15 @@ export function GameHeader({
           <button
             type="button"
             onClick={onHome}
-            className="shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+            className="shrink-0 text-sm text-muted underline underline-offset-2 hover:text-ink"
           >
             {homeLabel}
           </button>
         ) : null}
+        <ThemeToggle />
       </div>
       {slogan ? (
-        <p className="hidden min-w-0 text-right text-xs leading-relaxed text-neutral-500 sm:block sm:max-w-[58%] sm:text-sm">
+        <p className="hidden min-w-0 text-right text-xs leading-relaxed text-muted sm:block sm:max-w-[58%] sm:text-sm">
           {slogan}
         </p>
       ) : null}
@@ -41,11 +44,11 @@ export function GameHeader({
 
 export function GameScreen({ header, board, panel, modal }) {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100 [height:100dvh] [padding:env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]">
+    <div className="flex h-screen flex-col overflow-hidden bg-page font-sans text-ink [height:100dvh] [padding:env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]">
       {header}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pb-3 sm:gap-4 sm:px-4 sm:pb-4 max-lg:landscape:flex-row lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1">{board}</div>
-        <aside className="flex min-h-0 min-w-0 flex-none flex-col overflow-hidden rounded-none bg-white text-neutral-900 shadow-sm h-[min(42%,22rem)] min-h-[11.5rem] p-3 sm:p-5 max-lg:landscape:h-auto max-lg:landscape:min-h-0 max-lg:landscape:w-[min(42vw,20rem)] lg:h-auto lg:min-h-0 lg:w-[min(38%,26rem)] lg:p-6">
+        <aside className="flex min-h-0 min-w-0 flex-none flex-col overflow-hidden rounded-none border border-line bg-white text-neutral-900 shadow-sm h-[min(42%,22rem)] min-h-[11.5rem] p-3 sm:p-5 max-lg:landscape:h-auto max-lg:landscape:min-h-0 max-lg:landscape:w-[min(42vw,20rem)] lg:h-auto lg:min-h-0 lg:w-[min(38%,26rem)] lg:p-6">
           <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
         </aside>
       </div>

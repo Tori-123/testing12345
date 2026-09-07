@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ThemeToggle } from "./theme.jsx";
 
 export function useLobbyMode({
   initialRoomCode = "",
@@ -82,7 +83,7 @@ export default function GameLobby({
   onClockEnabled,
 }) {
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-neutral-950 px-4 py-5 font-sans text-neutral-100 sm:px-6 sm:py-8 [height:100dvh]">
+    <main className="flex h-screen flex-col overflow-hidden bg-page px-4 py-5 font-sans text-ink sm:px-6 sm:py-8 [height:100dvh]">
       <header className="flex shrink-0 items-center gap-3 sm:gap-4">
         <span className="text-base font-semibold tracking-tight sm:text-lg">
           PlyHan
@@ -90,23 +91,24 @@ export default function GameLobby({
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+          className="text-sm text-muted underline underline-offset-2 hover:text-ink"
         >
           返回
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-100"
+          className="text-sm text-muted underline underline-offset-2 hover:text-ink"
         >
           回主界面
         </button>
+        <ThemeToggle className="ml-auto" />
       </header>
       <div className="min-w-0">
         <h1 className="mt-8 text-3xl font-bold leading-tight sm:text-4xl">
           {title}
         </h1>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-500">
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
           {blurb}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
@@ -120,7 +122,7 @@ export default function GameLobby({
                 className={`rounded-none border px-3 py-1.5 text-sm ${
                   active
                     ? "border-red-600 bg-red-600 text-white"
-                    : "border-neutral-700 bg-neutral-900 text-neutral-100"
+                    : "border-line bg-surface text-ink"
                 }`}
               >
                 {option.label}
@@ -133,28 +135,28 @@ export default function GameLobby({
         <button
           type="button"
           onClick={onAi}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 text-left transition-colors hover:border-red-600 sm:p-8"
+          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-line bg-surface p-5 text-left transition-colors hover:border-red-600 sm:p-8"
         >
-          <span className="text-sm text-neutral-500">{engineLabel}</span>
+          <span className="text-sm text-muted">{engineLabel}</span>
           <span>
             <span className="block text-2xl font-bold">自己对电脑</span>
-            <span className="mt-3 block text-sm text-neutral-500">
+            <span className="mt-3 block text-sm text-muted">
               {engineHint}
             </span>
           </span>
           <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
         </button>
-        <div className="flex min-h-[8.5rem] flex-col justify-between rounded-none border border-neutral-800 bg-neutral-900 p-5 sm:p-8">
-          <span className="text-sm text-neutral-500">联机</span>
+        <div className="flex min-h-[8.5rem] flex-col justify-between rounded-none border border-line bg-surface p-5 sm:p-8">
+          <span className="text-sm text-muted">联机</span>
           <span>
             <span className="block text-2xl font-bold">创建房间</span>
-            <span className="mt-3 block text-sm text-neutral-500">
+            <span className="mt-3 block text-sm text-muted">
               {onlineHint}
             </span>
           </span>
           {onClockEnabled ? (
             <div className="mt-4">
-              <p className="text-sm text-neutral-500">联机步时</p>
+              <p className="text-sm text-muted">联机步时</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -162,7 +164,7 @@ export default function GameLobby({
                   className={`rounded-none border px-3 py-1.5 text-sm ${
                     clockEnabled
                       ? "border-red-600 bg-red-600 text-white"
-                      : "border-neutral-700 bg-neutral-800 text-neutral-100"
+                      : "border-line bg-surface text-ink"
                   }`}
                 >
                   每手 60 秒
@@ -173,7 +175,7 @@ export default function GameLobby({
                   className={`rounded-none border px-3 py-1.5 text-sm ${
                     !clockEnabled
                       ? "border-red-600 bg-red-600 text-white"
-                      : "border-neutral-700 bg-neutral-800 text-neutral-100"
+                      : "border-line bg-surface text-ink"
                   }`}
                 >
                   不限时
@@ -191,20 +193,20 @@ export default function GameLobby({
         </div>
       </div>
       <form
-        className="mt-4 shrink-0 border-t border-neutral-800 pt-4"
+        className="mt-4 shrink-0 border-t border-line pt-4"
         onSubmit={(event) => {
           event.preventDefault();
           onJoin();
         }}
       >
-        <label className="block text-sm text-neutral-500">加入房间</label>
+        <label className="block text-sm text-muted">加入房间</label>
         <div className="mt-2 flex flex-wrap gap-2">
           <input
             value={joinDraft}
             onChange={(event) => onJoinDraft(event.target.value.toUpperCase())}
             placeholder="输入房间码"
             maxLength={8}
-            className="min-w-0 flex-1 rounded-none border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono tracking-widest text-neutral-100 outline-none focus:border-red-600"
+            className="min-w-0 flex-1 rounded-none border border-line bg-surface px-3 py-2 font-mono tracking-widest text-ink outline-none focus:border-red-600"
           />
           <button
             type="submit"

@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #0a0a0a;
+  --fg: #f5f5f5;
+  --muted: #737373;
+  --surface: #171717;
+  --border: #262626;
+}
+
+:root[data-theme="light"] {
+  --bg: #fafafa;
+  --fg: #171717;
+  --muted: #737373;
+  --surface: #ffffff;
+  --border: #e5e5e5;
+}
+
 html,
 body,
 #root {
@@ -9,6 +25,8 @@ body,
   height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .board-slot {
@@ -255,7 +273,7 @@ body,
   z-index: 6;
   width: 7.5rem;
   height: 5rem;
-  color: #d4d4d4;
+  color: var(--muted);
   animation: tourney-hand-wash 1.6s ease-in-out infinite;
 }
 
@@ -271,8 +289,8 @@ body,
 .tourney-riffle-card {
   position: absolute;
   inset: 0;
-  border: 1px solid #525252;
-  background: #171717;
+  border: 1px solid var(--border);
+  background: var(--surface);
   animation: tourney-riffle 1.6s ease-in-out infinite;
   animation-delay: calc(var(--i) * -0.32s);
 }

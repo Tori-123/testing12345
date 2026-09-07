@@ -2,7 +2,15 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        page: "var(--bg)",
+        ink: "var(--fg)",
+        muted: "var(--muted)",
+        surface: "var(--surface)",
+        line: "var(--border)",
+      },
+    },
   },
   plugins: [],
 };

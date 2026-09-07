@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { AuthProvider } from "./auth/AuthContext.jsx";
+import { ThemeProvider } from "./theme.jsx";
 import "./index.css";
 
 class ErrorBoundary extends React.Component {
@@ -22,13 +23,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <main className="flex h-screen flex-col items-center justify-center bg-neutral-950 px-5 font-sans text-neutral-100 [height:100dvh]">
+        <main className="flex h-screen flex-col items-center justify-center bg-page px-5 font-sans text-ink [height:100dvh]">
           <div className="w-full max-w-md text-center">
             <h1 className="text-2xl font-bold text-red-600">页面出错了</h1>
-            <p className="mt-3 text-sm text-neutral-400">
+            <p className="mt-3 text-sm text-muted">
               请刷新重试；若持续出现，把下方错误信息发给我。
             </p>
-            <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-none border border-neutral-800 bg-neutral-900 p-3 text-left text-xs text-red-400">
+            <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-none border border-line bg-surface p-3 text-left text-xs text-red-400">
               {String(this.state.error?.message || this.state.error)}
             </pre>
             <button
@@ -49,11 +50,13 @@ class ErrorBoundary extends React.Component {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ErrorBoundary>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ErrorBoundary>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
