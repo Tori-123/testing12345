@@ -91,10 +91,14 @@ export default function XiangqiOnline({
   onHome,
   onRoomCode,
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   return (
     <BoardOnline
       game="xiangqi"
+      compact={compact}
+      opponentName={opponentName}
       initialCode={initialCode}
       initialToken={initialToken}
       initialSeat={initialSeat}

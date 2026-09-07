@@ -85,10 +85,14 @@ export default function ChessOnline({
   onHome,
   onRoomCode,
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   return (
     <BoardOnline
       game="chess"
+      compact={compact}
+      opponentName={opponentName}
       initialCode={initialCode}
       initialToken={initialToken}
       initialSeat={initialSeat}

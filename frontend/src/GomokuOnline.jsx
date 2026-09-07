@@ -96,6 +96,8 @@ export default function GomokuOnline({
   onHome,
   onRoomCode,
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   const [code, setCode] = useState((initialCode || "").toUpperCase());
   const [seat, setSeat] = useState("");
@@ -115,6 +117,7 @@ export default function GomokuOnline({
   const [displayClockMs, setDisplayClockMs] = useState(60_000);
   const [restartBlack, setRestartBlack] = useState(false);
   const [restartWhite, setRestartWhite] = useState(false);
+  const [opponentLeft, setOpponentLeft] = useState(false);
   const socketRef = useRef(null);
   const seatRef = useRef("");
   const pendingRef = useRef(null);
@@ -275,7 +278,19 @@ export default function GomokuOnline({
   const oppRestart = seat === "white" ? restartBlack : restartWhite;
   const shareUrl = code ? roomShareUrl(code) : "";
 
+  useEffect(() => {
+    if (!compact) return;
+    if (!gameOver) {
+      setOpponentLeft(false);
+      return;
+    }
+    if (!myRestart || oppRestart) return;
+    const timer = window.setTimeout(() => setOpponentLeft(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [compact, gameOver, myRestart, oppRestart]);
+
   function rematchLabel() {
+    if (compact && opponentLeft) return "对方离开了";
     if (myRestart && !oppRestart) return "已申请，等待对方";
     if (oppRestart && !myRestart) return "同意再来一局";
     return gameOver ? "再来一局" : "重新开局";
@@ -372,9 +387,11 @@ export default function GomokuOnline({
           onHome={onHome}
           backLabel="返回"
           slogan={
-            seat === "white"
-              ? "你执白。把链接发给对方，对方执黑先走。"
-              : "你执黑。把链接发给对方，对方执白。"
+            compact
+              ? ""
+              : seat === "white"
+                ? "你执白。把链接发给对方，对方执黑先走。"
+                : "你执黑。把链接发给对方，对方执白。"
           }
         />
       }
@@ -387,6 +404,34 @@ export default function GomokuOnline({
         />
       }
       panel={
+        compact ? (
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <p className="text-xs font-semibold tracking-wide text-neutral-500">
+              对手
+            </p>
+            <p className="mt-1 text-2xl font-bold text-neutral-900">
+              {opponentName || "对手"}
+            </p>
+            {bothReady && clockLimitMs > 0 ? (
+              <div className="mt-6 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <span className="text-xs font-semibold tracking-wide text-neutral-500">
+                  {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}
+                </span>
+                <span
+                  className={`font-mono text-2xl tabular-nums ${
+                    !gameOver && displayClockMs <= 10_000
+                      ? "text-red-600"
+                      : "text-neutral-900"
+                  }`}
+                >
+                  {formatClock(gameOver ? 0 : displayClockMs)}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-6 text-sm text-neutral-500">等待开局…</p>
+            )}
+          </div>
+        ) : (
         <>
           <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
           <div className="mt-3 text-sm text-neutral-500">
@@ -476,22 +521,27 @@ export default function GomokuOnline({
             )}
           </MoveHistory>
         </>
+        )
       }
       modal={
         overOpen ? (
           <GameOverDialog
             title="对局结束"
             message={
-              rematchLine
-                ? `${resultCopy(result, seat, endReason)} ${rematchLine}`
-                : resultCopy(result, seat, endReason)
+              compact && opponentLeft
+                ? `${resultCopy(result, seat, endReason)} 对方离开了。`
+                : rematchLine
+                  ? `${resultCopy(result, seat, endReason)} ${rematchLine}`
+                  : resultCopy(result, seat, endReason)
             }
             onRestart={handleRestart}
             onDismiss={() => setOverOpen(false)}
             onBack={onBack}
             onHome={onHome}
             restartLabel={rematchLabel()}
-            restartDisabled={!token || !bothReady || myRestart}
+            restartDisabled={
+              !token || !bothReady || myRestart || (compact && opponentLeft)
+            }
           />
         ) : null
       }

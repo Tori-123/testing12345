@@ -7,7 +7,7 @@
 -- ============================================================
 
 create table if not exists public.tournament_scores (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
+  user_id    uuid primary key,
   username   text not null,
   points     integer not null default 0,
   wins       integer not null default 0,

@@ -438,6 +438,8 @@ export default function ChessGame({
   initialToken = "",
   initialSeat = "",
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   const lobby = useLobbyMode({
     initialRoomCode,
@@ -473,6 +475,8 @@ export default function ChessGame({
         }}
         onRoomCode={onRoomCode}
         onFinish={onFinish}
+        compact={compact}
+        opponentName={opponentName}
       />
     );
   }

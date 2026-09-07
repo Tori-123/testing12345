@@ -3,8 +3,11 @@ import BoardOnline from "./BoardOnline.jsx";
 import DraughtsBoard, {
   START_FEN,
   applyUciToFen,
+  hopsFromUci,
   pieceAtFen,
 } from "./DraughtsBoard.jsx";
+
+const HOP_MS = 280;
 
 function resultCopy(result, seat, endReason) {
   if (endReason === "resign") {
@@ -99,6 +102,7 @@ function DraughtsOnlineBoard({
       targets={targets}
       captureFrom={captureFrom}
       flight={flight}
+      hiddenSquares={flight?.hops?.[0] ? [flight.hops[0]] : []}
       disabled={!myTurn}
       flipped={seat === "black"}
       onSquareClick={handleSquareClick}
@@ -116,10 +120,14 @@ export default function DraughtsOnline({
   onHome,
   onRoomCode,
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   return (
     <BoardOnline
       game="draughts"
+      compact={compact}
+      opponentName={opponentName}
       initialCode={initialCode}
       initialToken={initialToken}
       initialSeat={initialSeat}
@@ -133,7 +141,7 @@ export default function DraughtsOnline({
       pairHistory={pairHistory}
       resultCopy={resultCopy}
       readPiece={pieceAtFen}
-      slideMs={0}
+      slideMs={(uci) => Math.max(1, hopsFromUci(uci).length - 1) * HOP_MS}
       sloganFor={(seat) =>
         seat === "white"
           ? "你执白。把链接发给对方，对方执黑先走。"

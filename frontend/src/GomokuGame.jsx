@@ -313,6 +313,8 @@ export default function GomokuGame({
   initialToken = "",
   initialSeat = "",
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   const lobby = useLobbyMode({
     initialRoomCode,
@@ -348,6 +350,8 @@ export default function GomokuGame({
         }}
         onRoomCode={onRoomCode}
         onFinish={onFinish}
+        compact={compact}
+        opponentName={opponentName}
       />
     );
   }

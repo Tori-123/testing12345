@@ -48,3 +48,93 @@ def apply_score(user_id: str, username: str, delta: int, won: bool) -> bool:
     except Exception as exc:  # noqa: BLE001
         print(f"[score] bump_score 异常: {exc}", flush=True)
         return False
+
+
+def get_points(user_id: str) -> int:
+    """读 tournament_scores 当前积分；没有行或读失败当 0。"""
+    url, headers = _config()
+    if not url or not user_id:
+        return 0
+    try:
+        resp = httpx.get(
+            f"{url}/rest/v1/tournament_scores",
+            headers={
+                **headers,
+                "Accept": "application/json",
+                "Prefer": "return=representation",
+            },
+            params={"user_id": f"eq.{user_id}", "select": "points"},
+            timeout=8.0,
+        )
+        if resp.status_code >= 400:
+            print(f"[score] get_points 失败: {resp.status_code} {resp.text}", flush=True)
+            return 0
+        rows = resp.json()
+        if isinstance(rows, list) and rows:
+            return int(rows[0].get("points") or 0)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[score] get_points 异常: {exc}", flush=True)
+    return 0
+
+
+def list_scores(limit: int = 100) -> list[dict]:
+    url, headers = _config()
+    if not url:
+        return []
+    try:
+        resp = httpx.get(
+            f"{url}/rest/v1/tournament_scores",
+            headers={
+                **headers,
+                "Accept": "application/json",
+                "Prefer": "return=representation",
+            },
+            params={
+                "select": "user_id,username,points,wins,losses",
+                "order": "points.desc",
+                "limit": str(limit),
+            },
+            timeout=8.0,
+        )
+        if resp.status_code >= 400:
+            print(f"[score] list_scores 失败: {resp.status_code} {resp.text}", flush=True)
+            return []
+        rows = resp.json()
+        return rows if isinstance(rows, list) else []
+    except Exception as exc:  # noqa: BLE001
+        print(f"[score] list_scores 异常: {exc}", flush=True)
+        return []
+
+
+def seed_virtual_scores(rows: list[dict]) -> bool:
+    """写入虚拟用户种子分。外键挡住时返回 False，调用方仍可内存合并展示。"""
+    url, headers = _config()
+    if not url or not rows:
+        return False
+    payload = [
+        {
+            "user_id": row["id"],
+            "username": row["username"],
+            "points": int(row.get("points") or 0),
+            "wins": int(row.get("wins") or 0),
+            "losses": int(row.get("losses") or 0),
+        }
+        for row in rows
+    ]
+    try:
+        resp = httpx.post(
+            f"{url}/rest/v1/tournament_scores",
+            headers={
+                **headers,
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            },
+            json=payload,
+            timeout=12.0,
+        )
+        if resp.status_code >= 400:
+            print(f"[score] seed_virtual 失败: {resp.status_code} {resp.text}", flush=True)
+            return False
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[score] seed_virtual 异常: {exc}", flush=True)
+        return False

@@ -414,6 +414,8 @@ export default function XiangqiGame({
   initialToken = "",
   initialSeat = "",
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   const lobby = useLobbyMode({
     initialRoomCode,
@@ -449,6 +451,8 @@ export default function XiangqiGame({
         }}
         onRoomCode={onRoomCode}
         onFinish={onFinish}
+        compact={compact}
+        opponentName={opponentName}
       />
     );
   }

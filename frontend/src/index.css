@@ -220,6 +220,135 @@ body,
   transform-origin: center;
 }
 
+.tourney-card {
+  perspective: 700px;
+}
+
+.tourney-card-face {
+  transform-style: preserve-3d;
+  transition: transform 420ms ease;
+}
+
+.tourney-card-face.flipped {
+  transform: rotateY(180deg);
+}
+
+.tourney-card-back,
+.tourney-card-front {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.tourney-card-front {
+  transform: rotateY(180deg);
+}
+
+.tourney-riffle {
+  position: relative;
+  height: 16rem;
+}
+
+.tourney-shuffle-hand {
+  position: absolute;
+  top: 0.2rem;
+  left: 50%;
+  z-index: 6;
+  width: 7.5rem;
+  height: 5rem;
+  color: #d4d4d4;
+  animation: tourney-hand-wash 1.6s ease-in-out infinite;
+}
+
+.tourney-riffle-deck {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  width: 5rem;
+  height: 7.25rem;
+  transform: translateX(-50%);
+}
+
+.tourney-riffle-card {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #525252;
+  background: #171717;
+  animation: tourney-riffle 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.32s);
+}
+
+.tourney-riffle.drawing .tourney-riffle-card {
+  animation: none;
+  transform: translateX(0) rotate(0);
+}
+
+.tourney-draw-card {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  animation: tourney-draw-out 600ms ease-out forwards;
+}
+
+@keyframes tourney-riffle {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+    z-index: 2;
+  }
+  25% {
+    transform: translateX(38px) rotate(9deg);
+    z-index: 5;
+  }
+  50% {
+    transform: translateX(0) rotate(0);
+    z-index: 2;
+  }
+  75% {
+    transform: translateX(-38px) rotate(-9deg);
+    z-index: 1;
+  }
+}
+
+@keyframes tourney-hand-wash {
+  0% {
+    transform: translateX(-78%) rotate(-18deg);
+  }
+  50% {
+    transform: translateX(-22%) rotate(16deg);
+  }
+  100% {
+    transform: translateX(-78%) rotate(-18deg);
+  }
+}
+
+@keyframes tourney-draw-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-7.5rem);
+  }
+}
+
+.tourney-vs-bar {
+  overflow: hidden;
+}
+
+.tourney-vs-bar > div {
+  width: 100%;
+  transform: translateX(-100%);
+  animation: tourney-vs-bar 700ms ease-out forwards;
+}
+
+@keyframes tourney-vs-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gomoku-stone-place,
   .gomoku-stone-place .gomoku-stone-body,
@@ -228,9 +357,22 @@ body,
   .gomoku-stone-place .gomoku-last-mark,
   .xiangqi-ai-drop,
   .draughts-man-fly,
-  .draughts-captured {
+  .draughts-captured,
+  .tourney-card-face,
+  .tourney-shuffle-hand,
+  .tourney-riffle-card,
+  .tourney-draw-card,
+  .tourney-vs-bar > div {
     animation: none;
     transition: none;
     opacity: 1;
+  }
+
+  .tourney-vs-bar > div {
+    transform: none;
+  }
+
+  .tourney-draw-card {
+    transform: translateY(-7.5rem);
   }
 }

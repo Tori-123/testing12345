@@ -86,6 +86,8 @@ export default function BoardOnline({
   readPiece,
   clearSquare,
   onGameOver,
+  compact = false,
+  opponentName = "",
 }) {
   const [code, setCode] = useState("");
   const [seat, setSeat] = useState("");
@@ -109,6 +111,7 @@ export default function BoardOnline({
   const [displayClockMs, setDisplayClockMs] = useState(60_000);
   const [restartFirst, setRestartFirst] = useState(false);
   const [restartSecond, setRestartSecond] = useState(false);
+  const [opponentLeft, setOpponentLeft] = useState(false);
   const [flight, setFlight] = useState(null);
   const socketRef = useRef(null);
   const seatRef = useRef("");
@@ -132,20 +135,40 @@ export default function BoardOnline({
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function startFlight(from, to, sourceFen, landFen, duration) {
+  function hopsFromUci(uci) {
+    const hops = [];
+    const raw = uci || "";
+    for (let index = 0; index + 2 <= raw.length; index += 2) {
+      hops.push(raw.slice(index, index + 2));
+    }
+    return hops;
+  }
+
+  function startFlight(from, to, sourceFen, landFen, uci) {
     const piece = readPiece?.(sourceFen, from);
-    if (!piece || !clearSquare || !duration || reduceMotion()) {
+    const path = uci || `${from || ""}${to || ""}`;
+    const ms = typeof slideMs === "function" ? slideMs(path) : slideMs;
+    if (!piece || !ms || reduceMotion()) {
       setFen(landFen);
       return;
     }
+    const hops = hopsFromUci(path);
     stopFlight();
-    setFlight({ from, to, piece, duration });
-    setFen(clearSquare(sourceFen, from));
+    setFlight({
+      from,
+      to,
+      piece,
+      code: piece,
+      hops,
+      uci: path,
+      duration: ms,
+    });
+    setFen(clearSquare ? clearSquare(sourceFen, from) : sourceFen);
     flightTimerRef.current = window.setTimeout(() => {
       setFen(landFen);
       setFlight(null);
       flightTimerRef.current = null;
-    }, duration);
+    }, ms);
   }
 
   function readyFrom(data, which) {
@@ -250,7 +273,7 @@ export default function BoardOnline({
           data.to_square,
           prevFen,
           data.fen,
-          slideMs,
+          data.last_uci || `${data.from_square}${data.to_square}`,
         );
       } else if (!flightTimerRef.current) {
         setFen(data.fen);
@@ -355,7 +378,19 @@ export default function BoardOnline({
     [pairHistory, sans],
   );
 
+  useEffect(() => {
+    if (!compact) return;
+    if (!gameOver) {
+      setOpponentLeft(false);
+      return;
+    }
+    if (!myRestart || oppRestart) return;
+    const timer = window.setTimeout(() => setOpponentLeft(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [compact, gameOver, myRestart, oppRestart]);
+
   function rematchLabel() {
+    if (compact && opponentLeft) return "对方离开了";
     if (myRestart && !oppRestart) return "已申请，等待对方";
     if (oppRestart && !myRestart) return "同意再来一局";
     return gameOver ? "再来一局" : "重新开局";
@@ -389,7 +424,7 @@ export default function BoardOnline({
     pendingRef.current = { uci, afterCount: sans.length + 1 };
     const from = uci.slice(0, 2);
     const to = uci.slice(-2);
-    startFlight(from, to, fen, nextFen, slideMs);
+    startFlight(from, to, fen, nextFen, uci);
     fenRef.current = nextFen;
     setLegalUci([]);
     setFromSquare(from);
@@ -452,7 +487,7 @@ export default function BoardOnline({
           onBack={onBack}
           onHome={onHome}
           backLabel="返回"
-          slogan={sloganFor(seat, firstSeat)}
+          slogan={compact ? "" : sloganFor(seat, firstSeat)}
         />
       }
       board={renderBoard({
@@ -466,6 +501,34 @@ export default function BoardOnline({
         onMove: sendMove,
       })}
       panel={
+        compact ? (
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <p className="text-xs font-semibold tracking-wide text-neutral-500">
+              对手
+            </p>
+            <p className="mt-1 text-2xl font-bold text-neutral-900">
+              {opponentName || "对手"}
+            </p>
+            {bothReady && clockLimitMs > 0 ? (
+              <div className="mt-6 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <span className="text-xs font-semibold tracking-wide text-neutral-500">
+                  {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}
+                </span>
+                <span
+                  className={`font-mono text-2xl tabular-nums ${
+                    !gameOver && displayClockMs <= 10_000
+                      ? "text-red-600"
+                      : "text-neutral-900"
+                  }`}
+                >
+                  {formatClock(gameOver ? 0 : displayClockMs)}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-6 text-sm text-neutral-500">等待开局…</p>
+            )}
+          </div>
+        ) : (
         <>
           <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
           <div className="mt-3 text-sm text-neutral-500">
@@ -549,22 +612,27 @@ export default function BoardOnline({
             )}
           </MoveHistory>
         </>
+        )
       }
       modal={
         overOpen ? (
           <GameOverDialog
             title="对局结束"
             message={
-              rematchLine
-                ? `${resultCopy(result, seat, endReason)} ${rematchLine}`
-                : resultCopy(result, seat, endReason)
+              compact && opponentLeft
+                ? `${resultCopy(result, seat, endReason)} 对方离开了。`
+                : rematchLine
+                  ? `${resultCopy(result, seat, endReason)} ${rematchLine}`
+                  : resultCopy(result, seat, endReason)
             }
             onRestart={handleRestart}
             onDismiss={() => setOverOpen(false)}
             onBack={onBack}
             onHome={onHome}
             restartLabel={rematchLabel()}
-            restartDisabled={!token || !bothReady || myRestart}
+            restartDisabled={
+              !token || !bothReady || myRestart || (compact && opponentLeft)
+            }
           />
         ) : null
       }

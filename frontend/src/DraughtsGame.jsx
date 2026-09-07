@@ -426,6 +426,8 @@ export default function DraughtsGame({
   initialToken = "",
   initialSeat = "",
   onFinish,
+  compact = false,
+  opponentName = "",
 }) {
   const lobby = useLobbyMode({
     initialRoomCode,
@@ -461,6 +463,8 @@ export default function DraughtsGame({
         }}
         onRoomCode={onRoomCode}
         onFinish={onFinish}
+        compact={compact}
+        opponentName={opponentName}
       />
     );
   }
