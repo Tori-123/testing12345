@@ -33,7 +33,7 @@ export default function DashboardPage() {
             type="button"
             onClick={handleLogout}
             disabled={signingOut}
-            className="rounded-none border border-line px-4 py-2 text-sm text-ink hover:border-red-600 hover:text-red-600 disabled:opacity-50"
+            className="rounded-lg border border-line px-4 py-2 text-sm text-ink hover:border-wood hover:text-red-600 disabled:opacity-50"
           >
             {signingOut ? "登出中…" : "登出"}
           </button>
@@ -41,7 +41,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="w-full max-w-md rounded-none border border-line bg-surface p-6 sm:p-8">
+        <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 sm:p-8">
           <h1 className="text-2xl font-bold">仪表盘</h1>
           <p className="mt-1 text-sm text-muted">
             欢迎回来，这里是受保护的登录后页面。
@@ -65,7 +65,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
+            className="mt-8 w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white"
           >
             开始下棋
           </button>

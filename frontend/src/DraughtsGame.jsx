@@ -336,8 +336,8 @@ function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "",
       }
       panel={
         <>
-          <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
-          <div className="mt-3 text-sm text-neutral-500">
+          <p className="text-sm leading-relaxed text-ink">{statusLine}</p>
+          <div className="mt-3 text-sm text-muted">
             8×8 英美跳棋 · 你执{seat === "white" ? "白" : "黑"}
           </div>
           <SideSelect
@@ -355,7 +355,7 @@ function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "",
             onChange={setDifficulty}
           />
           {started ? (
-            <p className="mt-1 text-xs text-neutral-500">对局开始后不能改难度。</p>
+            <p className="mt-1 text-xs text-muted">对局开始后不能改难度。</p>
           ) : null}
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
@@ -365,7 +365,7 @@ function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "",
               <button
                 type="button"
                 onClick={handleRestart}
-                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
               >
                 重新开局
               </button>
@@ -373,7 +373,7 @@ function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "",
               <button
                 type="button"
                 onClick={handleStart}
-                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
               >
                 开始游戏
               </button>
@@ -382,7 +382,7 @@ function DraughtsAiGame({ onBack, initialSeat = "black", initialDifficulty = "",
               <button
                 type="button"
                 onClick={() => askEngine(fen, "", { animateEngine: true })}
-                className="rounded-none border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink"
               >
                 让电脑走
               </button>
@@ -473,11 +473,10 @@ export default function DraughtsGame({
     <GameLobby
       title="跳棋"
       blurb="自己对电脑，或创建房间把链接发给对方。先选执黑或执白。"
-      engineLabel="本机搜索"
       engineHint={
         lobby.seat === "white"
           ? "你执白，电脑先走黑子"
-          : "你执黑，本机引擎回一手"
+          : "你执黑，电脑回一手"
       }
       onlineHint={
         lobby.seat === "white"

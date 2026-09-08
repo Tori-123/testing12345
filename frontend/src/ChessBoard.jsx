@@ -258,7 +258,7 @@ export default function ChessBoard({
             disabled={!clickable}
             onClick={() => onSquareClick?.(sq.name)}
             className={`relative flex touch-manipulation items-center justify-center ${
-              isDark(sq.name) ? "bg-[#a56b3c]" : "bg-[#f3d7a8]"
+              isDark(sq.name) ? "bg-[#b58863]" : "bg-[#f0d9b5]"
             } ${lastMove || isSelected ? "ring-2 ring-inset ring-red-600" : ""} ${
               isTarget ? "bg-red-600/35" : ""
             } ${clickable ? "cursor-pointer" : "cursor-default"}`}

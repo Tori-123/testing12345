@@ -58,7 +58,7 @@ export function ThemeToggle({ className = "" }) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={`text-sm text-muted underline underline-offset-2 hover:text-ink ${className}`.trim()}
+      className={`rounded-lg border border-line bg-surface px-2.5 py-1 text-sm text-ink hover:border-wood ${className}`.trim()}
     >
       {theme === "light" ? "深色" : "浅色"}
     </button>

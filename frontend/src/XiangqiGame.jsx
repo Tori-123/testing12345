@@ -75,8 +75,8 @@ function XiangqiHeader({ onBack, onHome, seat }) {
       onHome={onHome}
       slogan={
         seat === "black"
-          ? "你执黑。Pikafish 先走红，再轮到你。"
-          : "你执红。走一步，Pikafish 回一步。"
+          ? "你执黑。电脑先走红，再轮到你。"
+          : "你执红。走一步，电脑回一步。"
       }
     />
   );
@@ -230,8 +230,8 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty 
       }
       setErrorMessage(
         error?.name === "AbortError"
-          ? "Pikafish 思考超时，请重试。"
-          : "连不上中国象棋服务，请确认后端和 Pikafish 已启动。",
+          ? "电脑思考超时，请重试。"
+          : "连不上中国象棋服务，请确认后端已启动。",
       );
     } finally {
       if (generation === requestGeneration.current) setPhase("idle");
@@ -315,7 +315,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty 
   const statusLine = gameOver
     ? resultCopy(result, seat)
     : phase === "thinking"
-      ? "Pikafish 正在想…"
+      ? "电脑正在想…"
       : phase === "user-move" || phase === "engine-move"
         ? "棋子移动中…"
       : `轮到你走。点选${seat === "black" ? "黑" : "红"}子，再点合法落点。`;
@@ -337,8 +337,8 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty 
       }
       panel={
         <>
-          <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
-          <div className="mt-3 text-sm text-neutral-500">
+          <p className="text-sm leading-relaxed text-ink">{statusLine}</p>
+          <div className="mt-3 text-sm text-muted">
             9×10 · 你执{seat === "black" ? "黑" : "红"}
           </div>
           <SideSelect
@@ -356,7 +356,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty 
             onChange={setDifficulty}
           />
           {errorMessage ? (
-            <div className="mt-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-4 rounded-lg border border-line bg-page px-3 py-2 text-sm text-red-500">
               <p>{errorMessage}</p>
               <button
                 type="button"
@@ -371,7 +371,7 @@ function XiangqiAiGame({ onBack, onHome, initialSeat = "red", initialDifficulty 
             <button
               type="button"
               onClick={() => handleRestart()}
-              className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
             >
               重新开局
             </button>
@@ -461,9 +461,8 @@ export default function XiangqiGame({
     <GameLobby
       title="中国象棋"
       blurb="自己对电脑，或创建房间把链接发给对方。先选执红或执黑。"
-      engineLabel="Pikafish"
       engineHint={
-        lobby.seat === "black" ? "你执黑，Pikafish 先走红" : "你执红，本机引擎回一手"
+        lobby.seat === "black" ? "你执黑，电脑先走红" : "你执红，电脑回一手"
       }
       onlineHint={
         lobby.seat === "black" ? "生成房间码和链接，你执黑" : "生成房间码和链接，你执红"

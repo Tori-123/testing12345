@@ -90,23 +90,31 @@ function Leaderboard() {
   }, []);
 
   return (
-    <section className="mt-8 w-full max-w-md">
-      <h2 className="text-sm font-semibold tracking-wide text-neutral-500">
+    <section className="flex min-h-0 w-full max-w-md flex-col lg:max-w-none lg:flex-1">
+      <h2 className="shrink-0 text-sm font-semibold tracking-wide text-ink">
         积分排行榜
       </h2>
-      <div className="mt-2 max-h-[40vh] overflow-y-auto rounded-none border border-line">
+      <div className="mt-2 min-h-0 max-h-[min(22rem,50vh)] overflow-y-auto rounded-lg border border-line bg-surface lg:max-h-[min(28rem,calc(100dvh-10rem))]">
         {loading ? (
-          <p className="px-4 py-3 text-sm text-neutral-500">加载中…</p>
+          <p className="px-4 py-3 text-sm text-muted">加载中…</p>
         ) : rows.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-neutral-500">还没有人上榜。</p>
+          <p className="px-4 py-3 text-sm text-muted">还没有人上榜。</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
-                <th className="px-4 py-2 font-medium">#</th>
-                <th className="px-4 py-2 font-medium">用户名</th>
-                <th className="px-4 py-2 text-right font-medium">积分</th>
-                <th className="px-4 py-2 text-right font-medium">胜 / 负</th>
+              <tr className="text-left text-xs text-ink">
+                <th className="sticky top-0 z-10 border-b border-line bg-surface px-4 py-2 font-semibold">
+                  #
+                </th>
+                <th className="sticky top-0 z-10 border-b border-line bg-surface px-4 py-2 font-semibold">
+                  用户名
+                </th>
+                <th className="sticky top-0 z-10 border-b border-line bg-surface px-4 py-2 text-right font-semibold">
+                  积分
+                </th>
+                <th className="sticky top-0 z-10 border-b border-line bg-surface px-4 py-2 text-right font-semibold">
+                  胜 / 负
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -115,12 +123,12 @@ function Leaderboard() {
                   key={row.username + i}
                   className="border-b border-line last:border-0"
                 >
-                  <td className="px-4 py-2 text-neutral-500">{i + 1}</td>
+                  <td className="px-4 py-2 text-muted">{i + 1}</td>
                   <td className="px-4 py-2">{row.username}</td>
                   <td className="px-4 py-2 text-right font-mono text-red-600">
                     {row.points}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono text-neutral-500">
+                  <td className="px-4 py-2 text-right font-mono text-muted">
                     {row.wins} / {row.losses}
                   </td>
                 </tr>
@@ -217,7 +225,7 @@ function RiffleShuffle({ drawing = false, flipped = false, gameLabel = "" }) {
               <div className="tourney-card-back absolute inset-0 flex items-center justify-center border border-line bg-surface text-lg text-muted">
                 ?
               </div>
-              <div className="tourney-card-front absolute inset-0 flex items-center justify-center border border-red-600 bg-surface px-1 text-center text-sm font-medium text-red-600">
+              <div className="tourney-card-front absolute inset-0 flex items-center justify-center border border-line bg-surface px-1 text-center text-sm font-medium text-red-600">
                 {gameLabel}
               </div>
             </div>
@@ -375,29 +383,32 @@ function Lobby({ user, onMatch, name }) {
   }
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-page px-4 py-5 font-sans text-ink sm:px-6 sm:py-8 [height:100dvh]">
-      <header className="flex shrink-0 items-center justify-between gap-3">
-        <p className="text-base font-semibold tracking-tight sm:text-lg">PlyHan</p>
-        <div className="flex items-center gap-4">
+    <main className="flex h-screen flex-col overflow-hidden bg-page font-sans text-ink [height:100dvh]">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-6">
+        <p className="text-lg font-bold tracking-tight">PlyHan</p>
+        <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <Link
             to="/"
-            className="text-sm text-muted underline underline-offset-2 hover:text-ink"
+            className="rounded-lg border border-line px-2.5 py-1 text-sm text-ink hover:border-wood"
           >
             返回
           </Link>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold sm:text-4xl">竞标赛</h1>
-        <button
-          type="button"
-          onClick={start}
-          className="mt-8 w-full max-w-sm rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
-        >
-          开始匹配
-        </button>
-        {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto px-4 py-6 sm:px-6 lg:flex-row lg:items-start lg:justify-center lg:gap-12 lg:overflow-hidden">
+        <div className="flex w-full max-w-md flex-col items-center text-center lg:items-start lg:text-left">
+          <h1 className="text-3xl font-bold sm:text-4xl">竞标赛</h1>
+          <p className="mt-2 text-sm text-muted">匹配对手，积分计入排行榜。</p>
+          <button
+            type="button"
+            onClick={start}
+            className="mt-8 w-full rounded-lg bg-red-600 px-4 py-4 text-lg font-bold text-white"
+          >
+            开始匹配
+          </button>
+          {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
+        </div>
         <Leaderboard />
       </div>
     </main>
@@ -443,13 +454,13 @@ function Gate({ name, toLogin }) {
         </p>
         <Link
           to="/login"
-          className="mt-8 block w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white"
+          className="mt-8 block w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white"
         >
           去登录
         </Link>
         <Link
           to="/register"
-          className="mt-3 block w-full rounded-none border border-line px-4 py-3 text-sm text-ink"
+          className="mt-3 block w-full rounded-lg border border-line px-4 py-3 text-sm text-ink"
         >
           注册新账号
         </Link>

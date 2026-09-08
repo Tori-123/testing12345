@@ -43,7 +43,7 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full rounded-none border bg-white px-3 py-2.5 text-sm text-neutral-900 outline-none focus:border-red-600";
+    "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-wood";
 
   return (
     <AuthShell
@@ -88,14 +88,14 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
         >
           {submitting ? "登录中…" : "登录"}
         </button>
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="w-full rounded-none border border-line px-4 py-3 text-sm text-ink hover:border-red-600 hover:text-red-600"
+          className="w-full rounded-lg border border-line px-4 py-3 text-sm text-ink hover:border-wood hover:text-red-600"
         >
           先不登录，直接下棋
         </button>

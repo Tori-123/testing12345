@@ -68,8 +68,8 @@ function GomokuHeader({ onBack, onHome, seat }) {
       onHome={onHome}
       slogan={
         seat === "white"
-          ? "你执白。Rapfi 先落黑子，再轮到你。"
-          : "你执黑。落一子，Rapfi 回一子。"
+          ? "你执白。电脑先落黑子，再轮到你。"
+          : "你执黑。落一子，电脑回一子。"
       }
     />
   );
@@ -159,8 +159,8 @@ function GomokuAiGame({
       if (generation !== requestGeneration.current) return;
       setErrorMessage(
         error?.name === "AbortError"
-          ? "Rapfi 思考超时，请重试。"
-          : "连不上五子棋服务，请确认后端和 Rapfi 已启动。",
+          ? "电脑思考超时，请重试。"
+          : "连不上五子棋服务，请确认后端已启动。",
       );
     } finally {
       if (generation === requestGeneration.current) setPhase("idle");
@@ -203,7 +203,7 @@ function GomokuAiGame({
     : gameOver
       ? resultCopy(result, seat)
       : phase === "thinking"
-        ? "Rapfi 正在想…"
+        ? "电脑正在想…"
         : waitingForEngine
           ? "轮到电脑。"
           : `轮到你走。点击棋盘交叉点落下${seat === "white" ? "白" : "黑"}子。`;
@@ -221,10 +221,10 @@ function GomokuAiGame({
       }
       panel={
         <>
-          <p className="text-sm leading-relaxed text-neutral-900">
+          <p className="text-sm leading-relaxed text-ink">
             {statusLine}
           </p>
-          <div className="mt-3 text-sm text-neutral-500">
+          <div className="mt-3 text-sm text-muted">
             15×15 自由规则 · 你执{seat === "white" ? "白" : "黑"}
           </div>
           <SideSelect
@@ -242,7 +242,7 @@ function GomokuAiGame({
             onChange={setDifficulty}
           />
           {started ? (
-            <p className="mt-1 text-xs text-neutral-500">对局开始后不能改难度。</p>
+            <p className="mt-1 text-xs text-muted">对局开始后不能改难度。</p>
           ) : null}
           {errorMessage ? (
             <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
@@ -252,7 +252,7 @@ function GomokuAiGame({
               <button
                 type="button"
                 onClick={() => handleRestart()}
-                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
               >
                 重新开局
               </button>
@@ -260,7 +260,7 @@ function GomokuAiGame({
               <button
                 type="button"
                 onClick={handleStart}
-                className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
               >
                 开始游戏
               </button>
@@ -269,9 +269,9 @@ function GomokuAiGame({
               <button
                 type="button"
                 onClick={() => askRapfi(moves)}
-                className="rounded-none border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink"
               >
-                让 Rapfi 走
+                让电脑走
               </button>
             ) : null}
           </GameControls>
@@ -360,9 +360,8 @@ export default function GomokuGame({
     <GameLobby
       title="五子棋"
       blurb="自己对电脑，或创建房间把链接发给对方。先选执黑或执白。"
-      engineLabel="Rapfi"
       engineHint={
-        lobby.seat === "white" ? "你执白，Rapfi 先走黑" : "你执黑，本机引擎回一手"
+        lobby.seat === "white" ? "你执白，电脑先走黑" : "你执黑，电脑回一手"
       }
       onlineHint={
         lobby.seat === "white" ? "生成房间码和链接，你执白" : "生成房间码和链接，你执黑"

@@ -8,16 +8,16 @@ export function GameHeader({
   homeLabel = "回主界面",
 }) {
   return (
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 sm:px-4 sm:py-3">
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-        <span className="text-base font-semibold tracking-tight sm:text-lg">
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line bg-surface px-3 py-2 sm:px-4 sm:py-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className="text-base font-bold tracking-tight sm:text-lg">
           PlyHan
         </span>
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="shrink-0 text-sm text-muted underline underline-offset-2 hover:text-ink"
+            className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-sm text-ink hover:border-wood"
           >
             {backLabel}
           </button>
@@ -26,7 +26,7 @@ export function GameHeader({
           <button
             type="button"
             onClick={onHome}
-            className="shrink-0 text-sm text-muted underline underline-offset-2 hover:text-ink"
+            className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-sm text-ink hover:border-wood"
           >
             {homeLabel}
           </button>
@@ -48,7 +48,7 @@ export function GameScreen({ header, board, panel, modal }) {
       {header}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pb-3 sm:gap-4 sm:px-4 sm:pb-4 max-lg:landscape:flex-row lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1">{board}</div>
-        <aside className="flex min-h-0 min-w-0 flex-none flex-col overflow-hidden rounded-none border border-line bg-white text-neutral-900 shadow-sm h-[min(42%,22rem)] min-h-[11.5rem] p-3 sm:p-5 max-lg:landscape:h-auto max-lg:landscape:min-h-0 max-lg:landscape:w-[min(42vw,20rem)] lg:h-auto lg:min-h-0 lg:w-[min(38%,26rem)] lg:p-6">
+        <aside className="flex min-h-0 min-w-0 flex-none flex-col overflow-hidden rounded-lg border border-line bg-surface text-ink h-[min(42%,22rem)] min-h-[11.5rem] p-3 sm:p-5 max-lg:landscape:h-auto max-lg:landscape:min-h-0 max-lg:landscape:w-[min(42vw,22rem)] lg:h-auto lg:min-h-0 lg:w-[min(40%,28rem)] lg:p-6">
           <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
         </aside>
       </div>
@@ -75,7 +75,7 @@ export function GameOverDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="game-over-title"
-        className="w-[min(90vw,22rem)] max-h-[min(90dvh,32rem)] overflow-y-auto rounded-none bg-white px-6 py-8 text-center text-neutral-900 shadow-sm sm:px-8 sm:py-10"
+        className="w-[min(90vw,22rem)] max-h-[min(90dvh,32rem)] overflow-y-auto rounded-lg border border-line bg-surface px-6 py-8 text-center text-ink sm:px-8 sm:py-10"
       >
         <p
           id="game-over-title"
@@ -88,14 +88,14 @@ export function GameOverDialog({
           type="button"
           onClick={onRestart}
           disabled={restartDisabled}
-          className="mt-8 w-full rounded-none bg-red-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+          className="mt-8 w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
         >
           {restartLabel}
         </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
+          className="mt-3 w-full text-sm text-muted underline underline-offset-2"
         >
           留下看棋盘
         </button>
@@ -103,7 +103,7 @@ export function GameOverDialog({
           <button
             type="button"
             onClick={onBack}
-            className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
+            className="mt-3 w-full text-sm text-muted underline underline-offset-2"
           >
             {backLabel}
           </button>
@@ -112,7 +112,7 @@ export function GameOverDialog({
           <button
             type="button"
             onClick={onHome}
-            className="mt-3 w-full text-sm text-neutral-500 underline underline-offset-2"
+            className="mt-3 w-full text-sm text-muted underline underline-offset-2"
           >
             {homeLabel}
           </button>
@@ -131,7 +131,7 @@ export function GameControls({ children }) {
 export function SideSelect({ value, onChange, disabled, options }) {
   return (
     <div className="mt-4">
-      <p className="text-sm text-neutral-700">执棋</p>
+      <p className="text-sm text-muted">执棋</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((option) => {
           const active = value === option.id;
@@ -141,10 +141,10 @@ export function SideSelect({ value, onChange, disabled, options }) {
               type="button"
               disabled={disabled}
               onClick={() => onChange(option.id)}
-              className={`rounded-none border px-3 py-1.5 text-sm disabled:opacity-50 ${
+              className={`rounded-lg border px-3 py-1.5 text-sm disabled:opacity-50 ${
                 active
                   ? "border-red-600 bg-red-600 text-white"
-                  : "border-neutral-300 bg-white text-neutral-900"
+                  : "border-line bg-page text-ink"
               }`}
             >
               {option.label}
@@ -158,13 +158,13 @@ export function SideSelect({ value, onChange, disabled, options }) {
 
 export function DifficultySelect({ value, onChange, disabled }) {
   return (
-    <label className="mt-4 flex flex-col gap-2 text-sm text-neutral-700 sm:flex-row sm:items-center sm:justify-between">
+    <label className="mt-4 flex flex-col gap-2 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
       <span>电脑难度</span>
       <select
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 max-w-full rounded-none border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-red-600 disabled:opacity-50"
+        className="difficulty-select min-w-0 max-w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-50"
       >
         <option value="beginner">入门（很弱）</option>
         <option value="easy">简单</option>
@@ -178,13 +178,13 @@ export function DifficultySelect({ value, onChange, disabled }) {
 export function MoveHistory({ title, empty, children }) {
   return (
     <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-      <h2 className="text-xs font-semibold tracking-wide text-neutral-500">
+      <h2 className="text-xs font-semibold tracking-wide text-muted">
         {title}
       </h2>
       {children ? (
         children
       ) : (
-        <p className="mt-2 text-sm text-neutral-500">{empty}</p>
+        <p className="mt-2 text-sm text-muted">{empty}</p>
       )}
     </div>
   );

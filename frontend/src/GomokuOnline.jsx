@@ -406,35 +406,35 @@ export default function GomokuOnline({
       panel={
         compact ? (
           <div className="flex min-h-0 flex-1 flex-col justify-center">
-            <p className="text-xs font-semibold tracking-wide text-neutral-500">
+            <p className="text-xs font-semibold tracking-wide text-muted">
               对手
             </p>
-            <p className="mt-1 text-2xl font-bold text-neutral-900">
+            <p className="mt-1 text-2xl font-bold text-ink">
               {opponentName || "对手"}
             </p>
             {bothReady && clockLimitMs > 0 ? (
-              <div className="mt-6 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
-                <span className="text-xs font-semibold tracking-wide text-neutral-500">
+              <div className="mt-6 flex items-baseline justify-between rounded-lg border border-line bg-page px-3 py-2">
+                <span className="text-xs font-semibold tracking-wide text-muted">
                   {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}
                 </span>
                 <span
                   className={`font-mono text-2xl tabular-nums ${
                     !gameOver && displayClockMs <= 10_000
                       ? "text-red-600"
-                      : "text-neutral-900"
+                      : "text-ink"
                   }`}
                 >
                   {formatClock(gameOver ? 0 : displayClockMs)}
                 </span>
               </div>
             ) : (
-              <p className="mt-6 text-sm text-neutral-500">等待开局…</p>
+              <p className="mt-6 text-sm text-muted">等待开局…</p>
             )}
           </div>
         ) : (
         <>
-          <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
-          <div className="mt-3 text-sm text-neutral-500">
+          <p className="text-sm leading-relaxed text-ink">{statusLine}</p>
+          <div className="mt-3 text-sm text-muted">
             15×15 自由规则 · 你执{seat === "white" ? "白" : "黑"}
             {bothReady ? " · 对方已加入" : " · 等待对方"}
             {bothReady
@@ -444,15 +444,15 @@ export default function GomokuOnline({
               : ""}
           </div>
           {bothReady && clockLimitMs > 0 ? (
-            <div className="mt-3 flex items-baseline justify-between border border-neutral-200 bg-neutral-50 px-3 py-2">
-              <span className="text-xs font-semibold tracking-wide text-neutral-500">
+            <div className="mt-3 flex items-baseline justify-between rounded-lg border border-line bg-page px-3 py-2">
+              <span className="text-xs font-semibold tracking-wide text-muted">
                 {gameOver ? "步时" : myTurn ? "你的步时" : "对方步时"}
               </span>
               <span
                 className={`font-mono text-2xl tabular-nums ${
                   !gameOver && displayClockMs <= 10_000
                     ? "text-red-600"
-                    : "text-neutral-900"
+                    : "text-ink"
                 }`}
               >
                 {formatClock(gameOver ? 0 : displayClockMs)}
@@ -460,30 +460,30 @@ export default function GomokuOnline({
             </div>
           ) : null}
           {code ? (
-            <div className="mt-4 rounded-none border border-neutral-200 bg-neutral-50 px-3 py-3">
-              <p className="text-xs font-semibold tracking-wide text-neutral-500">
+            <div className="mt-4 rounded-lg border border-line bg-page px-3 py-3">
+              <p className="text-xs font-semibold tracking-wide text-muted">
                 房间码
               </p>
-              <p className="mt-1 font-mono text-2xl tracking-[0.3em] text-neutral-900">
+              <p className="mt-1 font-mono text-2xl tracking-[0.3em] text-ink">
                 {code}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => copyText("code", code)}
-                  className="rounded-none border border-neutral-300 px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm"
                 >
                   {copied === "code" ? "已复制" : "复制房间码"}
                 </button>
                 <button
                   type="button"
                   onClick={() => copyText("link", shareUrl)}
-                  className="rounded-none bg-red-600 px-3 py-1.5 text-sm font-medium text-white"
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white"
                 >
                   {copied === "link" ? "已复制" : "复制链接"}
                 </button>
               </div>
-              <p className="mt-2 break-all font-mono text-xs leading-relaxed text-neutral-500 select-all">
+              <p className="mt-2 break-all font-mono text-xs leading-relaxed text-muted select-all">
                 {shareUrl}
               </p>
             </div>
@@ -496,7 +496,7 @@ export default function GomokuOnline({
               type="button"
               onClick={handleResign}
               disabled={!token || !bothReady || gameOver}
-              className="rounded-none border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
             >
               认输
             </button>
@@ -504,7 +504,7 @@ export default function GomokuOnline({
               type="button"
               onClick={handleRestart}
               disabled={!token || !bothReady || myRestart}
-              className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {rematchLabel()}
             </button>

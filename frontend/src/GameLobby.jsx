@@ -66,7 +66,6 @@ export function useLobbyMode({
 export default function GameLobby({
   title,
   blurb,
-  engineLabel,
   engineHint,
   onlineHint,
   seat,
@@ -83,29 +82,30 @@ export default function GameLobby({
   onClockEnabled,
 }) {
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-page px-4 py-5 font-sans text-ink sm:px-6 sm:py-8 [height:100dvh]">
-      <header className="flex shrink-0 items-center gap-3 sm:gap-4">
-        <span className="text-base font-semibold tracking-tight sm:text-lg">
+    <main className="flex h-screen flex-col overflow-hidden bg-page font-sans text-ink [height:100dvh]">
+      <header className="flex shrink-0 items-center gap-2 border-b border-line bg-surface px-4 py-3 sm:px-6 sm:gap-3">
+        <span className="text-base font-bold tracking-tight sm:text-lg">
           PlyHan
         </span>
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-muted underline underline-offset-2 hover:text-ink"
+          className="rounded-lg border border-line px-2.5 py-1 text-sm text-ink hover:border-wood"
         >
           返回
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-muted underline underline-offset-2 hover:text-ink"
+          className="rounded-lg border border-line px-2.5 py-1 text-sm text-ink hover:border-wood"
         >
           回主界面
         </button>
         <ThemeToggle className="ml-auto" />
       </header>
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6 sm:py-8">
       <div className="min-w-0">
-        <h1 className="mt-8 text-3xl font-bold leading-tight sm:text-4xl">
+        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">
           {title}
         </h1>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
@@ -119,7 +119,7 @@ export default function GameLobby({
                 key={option.id}
                 type="button"
                 onClick={() => onSeat(option.id)}
-                className={`rounded-none border px-3 py-1.5 text-sm ${
+                className={`rounded-lg border px-3 py-1.5 text-sm ${
                   active
                     ? "border-red-600 bg-red-600 text-white"
                     : "border-line bg-surface text-ink"
@@ -135,18 +135,18 @@ export default function GameLobby({
         <button
           type="button"
           onClick={onAi}
-          className="group flex min-h-[8.5rem] flex-col justify-between rounded-none border border-line bg-surface p-5 text-left transition-colors hover:border-red-600 sm:p-8"
+          className="group flex min-h-[8.5rem] flex-col justify-between rounded-lg border border-line bg-surface p-5 text-left transition-colors hover:border-wood sm:p-8"
         >
-          <span className="text-sm text-muted">{engineLabel}</span>
+          <span className="text-sm text-muted">人机</span>
           <span>
             <span className="block text-2xl font-bold">自己对电脑</span>
             <span className="mt-3 block text-sm text-muted">
               {engineHint}
             </span>
           </span>
-          <span className="h-1 w-12 bg-red-600 transition-all group-hover:w-full" />
+          <span className="h-1 w-12 rounded-full bg-red-600 transition-all group-hover:w-full" />
         </button>
-        <div className="flex min-h-[8.5rem] flex-col justify-between rounded-none border border-line bg-surface p-5 sm:p-8">
+        <div className="flex min-h-[8.5rem] flex-col justify-between rounded-lg border border-line bg-surface p-5 sm:p-8">
           <span className="text-sm text-muted">联机</span>
           <span>
             <span className="block text-2xl font-bold">创建房间</span>
@@ -161,10 +161,10 @@ export default function GameLobby({
                 <button
                   type="button"
                   onClick={() => onClockEnabled(true)}
-                  className={`rounded-none border px-3 py-1.5 text-sm ${
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${
                     clockEnabled
                       ? "border-red-600 bg-red-600 text-white"
-                      : "border-line bg-surface text-ink"
+                      : "border-line bg-page text-ink"
                   }`}
                 >
                   每手 60 秒
@@ -172,10 +172,10 @@ export default function GameLobby({
                 <button
                   type="button"
                   onClick={() => onClockEnabled(false)}
-                  className={`rounded-none border px-3 py-1.5 text-sm ${
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${
                     !clockEnabled
                       ? "border-red-600 bg-red-600 text-white"
-                      : "border-line bg-surface text-ink"
+                      : "border-line bg-page text-ink"
                   }`}
                 >
                   不限时
@@ -186,7 +186,7 @@ export default function GameLobby({
           <button
             type="button"
             onClick={onCreate}
-            className="mt-4 self-start rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+            className="mt-4 self-start rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
           >
             创建房间
           </button>
@@ -206,11 +206,11 @@ export default function GameLobby({
             onChange={(event) => onJoinDraft(event.target.value.toUpperCase())}
             placeholder="输入房间码"
             maxLength={8}
-            className="min-w-0 flex-1 rounded-none border border-line bg-surface px-3 py-2 font-mono tracking-widest text-ink outline-none focus:border-red-600"
+            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 font-mono tracking-widest text-ink outline-none focus:border-wood"
           />
           <button
             type="submit"
-            className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
           >
             加入
           </button>
@@ -219,6 +219,7 @@ export default function GameLobby({
           <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
         ) : null}
       </form>
+      </div>
     </main>
   );
 }

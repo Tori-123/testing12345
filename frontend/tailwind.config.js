@@ -9,6 +9,7 @@ export default {
         muted: "var(--muted)",
         surface: "var(--surface)",
         line: "var(--border)",
+        wood: "var(--border-strong)",
       },
     },
   },

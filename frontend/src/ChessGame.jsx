@@ -96,7 +96,7 @@ function BrandStrip({ onBack, onHome, seat }) {
       slogan={
         seat === "black"
           ? "你执黑。电脑先走白，再轮到你。"
-          : "你执白。走一步，电脑用下棋 API 回一步。"
+          : "你执白。走一步，电脑回一步。"
       }
     />
   );
@@ -360,8 +360,8 @@ function ChessAiGame({
       }
       panel={
         <>
-          <p className="text-sm leading-relaxed text-neutral-900">{statusLine}</p>
-          <div className="mt-3 text-sm text-neutral-500">
+          <p className="text-sm leading-relaxed text-ink">{statusLine}</p>
+          <div className="mt-3 text-sm text-muted">
             你执{seat === "black" ? "黑" : "白"} · 评估{" "}
             <span className="font-mono">{formatEval(evalScore)}</span>
           </div>
@@ -386,7 +386,7 @@ function ChessAiGame({
             <button
               type="button"
               onClick={() => handleRestart()}
-              className="rounded-none bg-red-600 px-4 py-2 text-sm font-medium text-white"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
             >
               重新开局
             </button>
@@ -394,7 +394,7 @@ function ChessAiGame({
               <button
                 type="button"
                 onClick={() => requestEngineOnly()}
-                className="rounded-none border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink"
               >
                 让电脑走
               </button>
@@ -485,9 +485,8 @@ export default function ChessGame({
     <GameLobby
       title="国际象棋"
       blurb="自己对电脑，或创建房间把链接发给对方。先选执白或执黑。"
-      engineLabel="Chess API"
       engineHint={
-        lobby.seat === "black" ? "你执黑，电脑先走白" : "你执白，下棋 API 回一手"
+        lobby.seat === "black" ? "你执黑，电脑先走白" : "你执白，电脑回一手"
       }
       onlineHint={
         lobby.seat === "black" ? "生成房间码和链接，你执黑" : "生成房间码和链接，你执白"
